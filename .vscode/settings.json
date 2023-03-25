@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "SCsub": "python",
+        "*.inc": "cpp"
+    }
+}
