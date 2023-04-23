@@ -182,6 +182,7 @@ opts.Add(BoolVariable("debug_symbols", "Build with debugging symbols", False))
 opts.Add(BoolVariable("separate_debug_symbols", "Extract debugging symbols to a separate file", False))
 opts.Add(EnumVariable("lto", "Link-time optimization (production builds)", "none", ("none", "auto", "thin", "full")))
 opts.Add(BoolVariable("production", "Set defaults to build Godot for use in production", False))
+opts.Add(BoolVariable("the_gates_sandbox", "TheGates sandbox build", False))
 
 # Components
 opts.Add(BoolVariable("deprecated", "Enable compatibility code for deprecated and removed features", True))
@@ -407,6 +408,7 @@ env_base.platform_apis = platform_apis
 env_base.editor_build = env_base["target"] == "editor"
 env_base.dev_build = env_base["dev_build"]
 env_base.debug_features = env_base["target"] in ["editor", "template_debug"]
+env_base.the_gates_sandbox = env_base["the_gates_sandbox"]
 
 if env_base.dev_build:
     opt_level = "none"
@@ -433,6 +435,10 @@ if env_base.dev_build:
 else:
     # Disable assert() for production targets (only used in thirdparty code).
     env_base.Append(CPPDEFINES=["NDEBUG"])
+
+if env_base.the_gates_sandbox:
+    # Run in TheGates sandbox mode
+    env_base.Append(CPPDEFINES=["THE_GATES_SANDBOX"])
 
 # SCons speed optimization controlled by the `fast_unsafe` option, which provide
 # more than 10 s speed up for incremental rebuilds.
@@ -559,6 +565,8 @@ if selected_platform in platform_list:
     print(f'Building for platform "{selected_platform}", architecture "{env["arch"]}", target "{env["target"]}".')
     if env.dev_build:
         print("NOTE: Developer build, with debug optimization level and debug symbols (unless overridden).")
+    if env.the_gates_sandbox:
+        print("NOTE: TheGates sandbox build.")
 
     # Set optimize and debug_symbols flags.
     # "custom" means do nothing and let users set their own optimization flags.
@@ -792,6 +800,9 @@ if selected_platform in platform_list:
     suffix += "." + env["target"]
     if env.dev_build:
         suffix += ".dev"
+    
+    if env.the_gates_sandbox:
+        suffix += ".sandbox"
 
     if env_base["precision"] == "double":
         suffix += ".double"

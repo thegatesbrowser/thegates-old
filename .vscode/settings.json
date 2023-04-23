@@ -1,6 +1,17 @@
 {
     "files.associations": {
         "SCsub": "python",
-        "*.inc": "cpp"
+        "*.inc": "cpp",
+        "mutex": "cpp",
+        "*.tcc": "cpp",
+        "unordered_map": "cpp",
+        "fstream": "cpp",
+        "istream": "cpp",
+        "numeric": "cpp",
+        "ostream": "cpp",
+        "sstream": "cpp",
+        "functional": "cpp",
+        "memory": "cpp",
+        "optional": "cpp"
     }
 }

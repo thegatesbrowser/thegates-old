@@ -5,15 +5,36 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch",
+            "name": "Launch editor",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/bin/godot.linuxbsd.editor.x86_64",
+            "program": "${workspaceFolder}/bin/godot.linuxbsd.editor.dev.x86_64",
             "args": [ "-e" ],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Launch project",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/godot.linuxbsd.editor.dev.x86_64",
+            "args": [
+                "--verbose",
+                "--path",
+                "/home/nordup/projects/godot/the-gates-folder/Gates/SolarSystem"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Launch project in sandbox",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/godot.linuxbsd.editor.dev.sandbox.x86_64",
+            "args": [
+                "--verbose",
+                "--path",
+                "/home/nordup/projects/godot/the-gates-folder/Gates/NoWindowTest"
+            ],
+            "cwd": "${workspaceFolder}"
         }
     ]
 }

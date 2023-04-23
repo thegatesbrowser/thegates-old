@@ -1,0 +1,18 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${default}"
+            ],
+            "defines": [
+                "X11_ENABLED",
+                "VULKAN_ENABLED",
+                "THE_GATES_SANDBOX"
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "intelliSenseMode": "gcc-x64"
+        }
+    ],
+    "version": 4
+}
