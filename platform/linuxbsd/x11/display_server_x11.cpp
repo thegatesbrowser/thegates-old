@@ -1427,6 +1427,11 @@ DisplayServer::WindowID DisplayServerX11::create_sub_window(WindowMode p_mode, V
 void DisplayServerX11::show_window(WindowID p_id) {
 	_THREAD_SAFE_METHOD_
 
+#ifdef THE_GATES_SANDBOX
+	print_verbose("show_window: return. Sandbox mode");
+	return;
+#endif
+	
 	const WindowData &wd = windows[p_id];
 	popup_open(p_id);
 

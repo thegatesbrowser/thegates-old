@@ -820,6 +820,11 @@ DisplayServer::WindowID DisplayServerWindows::create_sub_window(WindowMode p_mod
 }
 
 void DisplayServerWindows::show_window(WindowID p_id) {
+#ifdef THE_GATES_SANDBOX
+	print_verbose("show_window: return. Sandbox mode");
+	return;
+#endif
+	
 	ERR_FAIL_COND(!windows.has(p_id));
 
 	WindowData &wd = windows[p_id];

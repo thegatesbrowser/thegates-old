@@ -9,7 +9,7 @@
             "type": "shell",
             "command": "scons",
             "args": [
-              "-j", "$(nproc)"
+              "-j", "$(nproc)", "dev_build=yes", "the_gates_sandbox=yes"
             ],
             "problemMatcher": "$msCompile"
         },
