@@ -824,7 +824,7 @@ void DisplayServerWindows::show_window(WindowID p_id) {
 	print_verbose("show_window: return. Sandbox mode");
 	return;
 #endif
-	
+
 	ERR_FAIL_COND(!windows.has(p_id));
 
 	WindowData &wd = windows[p_id];
@@ -1379,6 +1379,11 @@ void DisplayServerWindows::_update_window_style(WindowID p_window, bool p_repain
 void DisplayServerWindows::window_set_mode(WindowMode p_mode, WindowID p_window) {
 	_THREAD_SAFE_METHOD_
 
+#ifdef THE_GATES_SANDBOX
+	print_verbose("window_set_mode: return. Sandbox mode");
+	return;
+#endif
+
 	ERR_FAIL_COND(!windows.has(p_window));
 	WindowData &wd = windows[p_window];
 
@@ -1497,6 +1502,11 @@ bool DisplayServerWindows::window_is_maximize_allowed(WindowID p_window) const {
 
 void DisplayServerWindows::window_set_flag(WindowFlags p_flag, bool p_enabled, WindowID p_window) {
 	_THREAD_SAFE_METHOD_
+
+#ifdef THE_GATES_SANDBOX
+	print_verbose("window_set_flag: return. Sandbox mode");
+	return;
+#endif
 
 	ERR_FAIL_COND(!windows.has(p_window));
 	WindowData &wd = windows[p_window];
@@ -3980,6 +3990,11 @@ DisplayServer::WindowID DisplayServerWindows::_create_window(WindowMode p_mode, 
 	WindowID id = window_id_counter;
 	{
 		WindowData &wd = windows[id];
+
+#ifdef THE_GATES_SANDBOX
+		dwStyle = dwStyle & !WS_VISIBLE;
+		print_verbose("CreateWindowExW(..., !WS_VISIBLE, ...) Sandbox mode");
+#endif
 
 		wd.hWnd = CreateWindowExW(
 				dwExStyle,

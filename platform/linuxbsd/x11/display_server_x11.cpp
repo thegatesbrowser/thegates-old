@@ -2660,6 +2660,11 @@ bool DisplayServerX11::can_any_window_draw() const {
 void DisplayServerX11::window_set_ime_active(const bool p_active, WindowID p_window) {
 	_THREAD_SAFE_METHOD_
 
+#ifdef THE_GATES_SANDBOX
+	print_verbose("window_set_ime_active: return. Sandbox mode");
+	return;
+#endif
+
 	ERR_FAIL_COND(!windows.has(p_window));
 	WindowData &wd = windows[p_window];
 
