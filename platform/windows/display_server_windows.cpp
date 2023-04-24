@@ -3992,8 +3992,8 @@ DisplayServer::WindowID DisplayServerWindows::_create_window(WindowMode p_mode, 
 		WindowData &wd = windows[id];
 
 #ifdef THE_GATES_SANDBOX
-		dwStyle = dwStyle & !WS_VISIBLE;
-		print_verbose("CreateWindowExW(..., !WS_VISIBLE, ...) Sandbox mode");
+		dwStyle = dwStyle & ~WS_VISIBLE; // Exclude visible flag
+		print_verbose("CreateWindowExW(..., NOT WS_VISIBLE, ...) Sandbox mode");
 #endif
 
 		wd.hWnd = CreateWindowExW(
