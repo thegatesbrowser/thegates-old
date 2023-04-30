@@ -28,7 +28,7 @@
             "name": "Launch project in sandbox",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/bin/godot.linuxbsd.editor.dev.sandbox.x86_64",
+            "program": "${workspaceFolder}/bin/godot.linuxbsd.editor.dev.sandbox.x86_64.llvm",
             "args": [
                 "--verbose",
                 "--path",

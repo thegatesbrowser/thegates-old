@@ -165,6 +165,9 @@ class RenderingDeviceVulkan : public RenderingDevice {
 	Vector<uint8_t> _texture_get_data_from_image(Texture *tex, VkImage p_image, VmaAllocation p_allocation, uint32_t p_layer, bool p_2d = false);
 	Error _texture_update(RID p_texture, uint32_t p_layer, const Vector<uint8_t> &p_data, BitField<BarrierMask> p_post_barrier, bool p_use_setup_queue);
 
+	VkImage external_image;
+	Error _create_external_texture(VkFormat p_format, VkExtent3D p_extent);
+
 	/*****************/
 	/**** SAMPLER ****/
 	/*****************/
