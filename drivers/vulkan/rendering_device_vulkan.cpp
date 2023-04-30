@@ -1659,6 +1659,63 @@ void RenderingDeviceVulkan::_buffer_memory_barrier(VkBuffer buffer, uint64_t p_f
 /**** TEXTURE ****/
 /*****************/
 
+Error RenderingDeviceVulkan::_create_external_texture(VkFormat p_format, VkExtent3D p_extent) {
+	VkExternalMemoryImageCreateInfo externalImageInfo = {
+		/*sType*/ VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
+		/*pNext*/ NULL,
+		/*handleTypes*/ VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT
+    };
+
+	VkImageCreateInfo imageCreateInfo = {
+		/*sType*/ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+		/*pNext*/ &externalImageInfo,
+		/*flags*/ 0,
+		/*imageType*/ VK_IMAGE_TYPE_2D,
+		/*format*/ p_format,
+		/*extent*/ p_extent,
+		/*mipLevels*/ 1,
+		/*arrayLayers*/ 1,
+		/*samples*/ VK_SAMPLE_COUNT_1_BIT,
+		/*tiling*/ VK_IMAGE_TILING_OPTIMAL,
+		/*usage*/ VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+		/*sharingMode*/ VK_SHARING_MODE_EXCLUSIVE,
+		/*queueFamilyIndexCount*/ 0,
+		/*pQueueFamilyIndices*/ nullptr,
+		/*initialLayout*/ VK_IMAGE_LAYOUT_UNDEFINED
+	};
+
+	VmaAllocationCreateInfo allocCreateInfo = {};
+	allocCreateInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+	allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+	allocCreateInfo.priority = 1.0f;
+
+	VmaAllocation image_allocation;
+	VkResult err = vmaCreateImage(allocator, &imageCreateInfo, &allocCreateInfo, &external_image, &image_allocation, nullptr);
+	ERR_FAIL_COND_MSG(err, ERR_CANT_CREATE);
+
+	print_verbose("External texture created: " + itos(p_extent.width) + "x" + itos(p_extent.height));
+
+	return OK;
+
+#if WIN32
+    VkMemoryGetWin32HandleInfoKHR memoryInfo = {
+            .sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR,
+            .pNext = NULL,
+            .memory = pTexture->deviceMemory,
+            .handleType = externalHandleType
+    };
+
+    // TODO move to preloaded refs
+    PFN_vkGetMemoryWin32HandleKHR getMemoryWin32HandleFunc = (PFN_vkGetMemoryWin32HandleKHR) vkGetInstanceProcAddr(pVulkan->instance, "vkGetMemoryWin32HandleKHR");
+    if (getMemoryWin32HandleFunc == NULL) {
+        FBR_LOG_DEBUG("Failed to get PFN_vkGetMemoryWin32HandleKHR!");
+    }
+    if (getMemoryWin32HandleFunc(pVulkan->device, &memoryInfo, &pTexture->externalMemory) != VK_SUCCESS) {
+        FBR_LOG_DEBUG("Failed to get external handle!");
+    }
+#endif
+}
+
 RID RenderingDeviceVulkan::texture_create(const TextureFormat &p_format, const TextureView &p_view, const Vector<Vector<uint8_t>> &p_data) {
 	_THREAD_SAFE_METHOD_
 
@@ -8970,6 +9027,13 @@ void RenderingDeviceVulkan::initialize(VulkanContext *p_context, bool p_local_de
 
 	// Check to make sure DescriptorPoolKey is good.
 	static_assert(sizeof(uint64_t) * 3 >= UNIFORM_TYPE_MAX * sizeof(uint16_t));
+
+	VkExtent3D extent = {
+		static_cast<uint32_t>(p_context->window_get_width()),
+		static_cast<uint32_t>(p_context->window_get_height()),
+		1
+	};
+	_create_external_texture(p_context->get_screen_format(), extent);
 
 	draw_list = nullptr;
 	draw_list_count = 0;

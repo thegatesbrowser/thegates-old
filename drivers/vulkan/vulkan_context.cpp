@@ -414,6 +414,10 @@ Error VulkanContext::_initialize_instance_extensions() {
 	register_requested_instance_extension(VK_KHR_SURFACE_EXTENSION_NAME, true);
 	register_requested_instance_extension(_get_platform_surface_extension(), true);
 
+	// Needed for exchanging framebuffers with sandbox process
+	register_requested_instance_extension(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME, true);
+	register_requested_instance_extension(VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME, true);
+
 	if (_use_validation_layers()) {
 		register_requested_instance_extension(VK_EXT_DEBUG_REPORT_EXTENSION_NAME, false);
 	}
@@ -494,6 +498,12 @@ Error VulkanContext::_initialize_device_extensions() {
 
 	// Make sure our core extensions are here
 	register_requested_device_extension(VK_KHR_SWAPCHAIN_EXTENSION_NAME, true);
+
+	// Needed for exchanging framebuffers with sandbox process
+	register_requested_device_extension(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME, true);
+	register_requested_device_extension(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME, true);
+	register_requested_device_extension(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME, true);
+	register_requested_device_extension(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME, true);
 
 	register_requested_device_extension(VK_KHR_MULTIVIEW_EXTENSION_NAME, false);
 	register_requested_device_extension(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME, false);
@@ -1942,6 +1952,12 @@ Error VulkanContext::_update_swap_chain(Window *window) {
 		}
 	}
 
+#ifdef THE_GATES_SANDBOX
+	uint32_t imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+#else
+	uint32_t imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+#endif
+
 	VkSwapchainCreateInfoKHR swapchain_ci = {
 		/*sType*/ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
 		/*pNext*/ nullptr,
@@ -1955,7 +1971,7 @@ Error VulkanContext::_update_swap_chain(Window *window) {
 				/*height*/ swapchainExtent.height,
 		},
 		/*imageArrayLayers*/ 1,
-		/*imageUsage*/ VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+		/*imageUsage*/ imageUsage,
 		/*imageSharingMode*/ VK_SHARING_MODE_EXCLUSIVE,
 		/*queueFamilyIndexCount*/ 0,
 		/*pQueueFamilyIndices*/ nullptr,

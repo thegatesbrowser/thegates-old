@@ -11,7 +11,8 @@
                 "THE_GATES_SANDBOX"
             ],
             "compilerPath": "/usr/bin/gcc",
-            "intelliSenseMode": "gcc-x64"
+            "intelliSenseMode": "gcc-x64",
+            "compileCommands": "compile_commands.json"
         }
     ],
     "version": 4
