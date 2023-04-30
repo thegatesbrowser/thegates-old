@@ -1660,10 +1660,12 @@ void RenderingDeviceVulkan::_buffer_memory_barrier(VkBuffer buffer, uint64_t p_f
 /*****************/
 
 Error RenderingDeviceVulkan::_create_external_texture(VkFormat p_format, VkExtent3D p_extent) {
+	// Crate external texture
+	VkExternalMemoryHandleTypeFlagBits externalHandleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 	VkExternalMemoryImageCreateInfo externalImageInfo = {
 		/*sType*/ VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
 		/*pNext*/ NULL,
-		/*handleTypes*/ VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT
+		/*handleTypes*/ externalHandleType
     };
 
 	VkImageCreateInfo imageCreateInfo = {
@@ -1691,9 +1693,26 @@ Error RenderingDeviceVulkan::_create_external_texture(VkFormat p_format, VkExten
 
 	VmaAllocation image_allocation;
 	VkResult err = vmaCreateImage(allocator, &imageCreateInfo, &allocCreateInfo, &external_image, &image_allocation, nullptr);
-	ERR_FAIL_COND_MSG(err, ERR_CANT_CREATE);
+	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 
 	print_verbose("External texture created: " + itos(p_extent.width) + "x" + itos(p_extent.height));
+
+	// Create file descriptor
+	VmaAllocationInfo allocationInfo;
+	vmaGetAllocationInfo(allocator, image_allocation, &allocationInfo);
+
+	VkMemoryGetFdInfoKHR memoryGetInfo = {
+		/*sType*/ VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,
+    	/*pNext*/ nullptr,
+		/*memory*/ allocationInfo.deviceMemory,
+		/*handleType*/ externalHandleType
+	};
+
+	int fd;
+	err = vkGetMemoryFdKHR(device, &memoryGetInfo, &fd);
+	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
+
+	print_verbose("File Descriptor created: " + itos(fd));
 
 	return OK;
 
