@@ -1715,24 +1715,6 @@ Error RenderingDeviceVulkan::_create_external_texture(VkFormat p_format, VkExten
 	print_verbose("File Descriptor created: " + itos(fd));
 
 	return OK;
-
-#if WIN32
-    VkMemoryGetWin32HandleInfoKHR memoryInfo = {
-            .sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR,
-            .pNext = NULL,
-            .memory = pTexture->deviceMemory,
-            .handleType = externalHandleType
-    };
-
-    // TODO move to preloaded refs
-    PFN_vkGetMemoryWin32HandleKHR getMemoryWin32HandleFunc = (PFN_vkGetMemoryWin32HandleKHR) vkGetInstanceProcAddr(pVulkan->instance, "vkGetMemoryWin32HandleKHR");
-    if (getMemoryWin32HandleFunc == NULL) {
-        FBR_LOG_DEBUG("Failed to get PFN_vkGetMemoryWin32HandleKHR!");
-    }
-    if (getMemoryWin32HandleFunc(pVulkan->device, &memoryInfo, &pTexture->externalMemory) != VK_SUCCESS) {
-        FBR_LOG_DEBUG("Failed to get external handle!");
-    }
-#endif
 }
 
 RID RenderingDeviceVulkan::texture_create(const TextureFormat &p_format, const TextureView &p_view, const Vector<Vector<uint8_t>> &p_data) {
