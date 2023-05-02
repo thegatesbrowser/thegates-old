@@ -281,6 +281,7 @@ public:
 	const ShaderCapabilities &get_shader_capabilities() const { return shader_capabilities; };
 	const StorageBufferCapabilities &get_storage_buffer_capabilities() const { return storage_buffer_capabilities; };
 	const VkPhysicalDeviceFeatures &get_physical_device_features() const { return physical_device_features; };
+	const VkPhysicalDeviceMemoryProperties &get_memory_properties() const { return memory_properties; };
 
 	VkDevice get_device();
 	VkPhysicalDevice get_physical_device();
