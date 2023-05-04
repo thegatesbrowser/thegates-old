@@ -2542,6 +2542,11 @@ int VulkanContext::get_swapchain_image_count() const {
 	return swapchainImageCount;
 }
 
+VkImage VulkanContext::get_swapchain_image(DisplayServer::WindowID p_window) const {
+	ERR_FAIL_COND_V(!windows.has(p_window), VK_NULL_HANDLE);
+	return windows[p_window].swapchain_image_resources->image;
+}
+
 VkQueue VulkanContext::get_graphics_queue() const {
 	return graphics_queue;
 }
