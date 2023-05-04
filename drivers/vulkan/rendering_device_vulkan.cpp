@@ -1681,14 +1681,14 @@ VkResult RenderingDeviceVulkan::_memory_type_from_properties(
 	return VK_ERROR_FORMAT_NOT_SUPPORTED;
 }
 
-Error RenderingDeviceVulkan::_create_external_texture(VkFormat p_format, VkExtent3D p_extent, int *fd) {
+Error RenderingDeviceVulkan::_create_external_image(VkFormat p_format, VkExtent3D p_extent, int *fd) {
 	// Crate external texture
 	VkExternalMemoryHandleTypeFlagBits externalHandleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT; // TODO: handle platform
 	VkExternalMemoryImageCreateInfo externalImageInfo = {
 		/*sType*/ VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
 		/*pNext*/ NULL,
 		/*handleTypes*/ externalHandleType
-    };
+	};
 	VkImageCreateInfo imageCreateInfo = {
 		/*sType*/ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 		/*pNext*/ &externalImageInfo,
@@ -1706,31 +1706,32 @@ Error RenderingDeviceVulkan::_create_external_texture(VkFormat p_format, VkExten
 		/*pQueueFamilyIndices*/ nullptr,
 		/*initialLayout*/ VK_IMAGE_LAYOUT_UNDEFINED
 	};
+	external_image_extent = p_extent;
 	VkResult err = vkCreateImage(device, &imageCreateInfo, nullptr, &external_image);
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 
 	// Allocate memory
-    VkMemoryRequirements mem_requirements;
-    uint32_t mem_type_index;
+	VkMemoryRequirements mem_requirements;
+	uint32_t mem_type_index;
 	err = _memory_type_from_properties(external_image, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &mem_requirements, &mem_type_index);
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 
-    VkExportMemoryAllocateInfo exportAllocInfo = {
-            /*sType*/ VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO,
+	VkExportMemoryAllocateInfo exportAllocInfo = {
+			/*sType*/ VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO,
 			/*pNext*/ nullptr,
-            /*handleTypes*/ externalHandleType
-    };
-    VkMemoryAllocateInfo allocInfo = {
-            /*sType*/ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-            /*pNext*/ &exportAllocInfo,
-            /*allocationSize*/ mem_requirements.size,
-            /*memoryTypeIndex*/ mem_type_index
-    };
+			/*handleTypes*/ externalHandleType
+	};
+	VkMemoryAllocateInfo allocInfo = {
+			/*sType*/ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+			/*pNext*/ &exportAllocInfo,
+			/*allocationSize*/ mem_requirements.size,
+			/*memoryTypeIndex*/ mem_type_index
+	};
 
 	VkDeviceMemory device_memory;
-    err = vkAllocateMemory(device, &allocInfo, NULL, &device_memory);
+	err = vkAllocateMemory(device, &allocInfo, NULL, &device_memory);
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
-    
+	
 	err = vkBindImageMemory(device, external_image, device_memory, 0);
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 
@@ -1740,7 +1741,7 @@ Error RenderingDeviceVulkan::_create_external_texture(VkFormat p_format, VkExten
 	// TODO: handle platform
 	VkMemoryGetFdInfoKHR memoryGetInfo = {
 		/*sType*/ VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,
-    	/*pNext*/ nullptr,
+		/*pNext*/ nullptr,
 		/*memory*/ device_memory,
 		/*handleType*/ externalHandleType
 	};
@@ -1753,14 +1754,14 @@ Error RenderingDeviceVulkan::_create_external_texture(VkFormat p_format, VkExten
 	return OK;
 }
 
-Error RenderingDeviceVulkan::_import_external_texture(VkFormat p_format, VkExtent3D p_extent, int fd) {
+Error RenderingDeviceVulkan::_import_external_image(VkFormat p_format, VkExtent3D p_extent, int fd) {
 	// Crate external texture
 	VkExternalMemoryHandleTypeFlagBits externalHandleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT; // TODO: handle platform
 	VkExternalMemoryImageCreateInfo externalImageInfo = {
 		/*sType*/ VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
 		/*pNext*/ NULL,
 		/*handleTypes*/ externalHandleType
-    };
+	};
 	VkImageCreateInfo imageCreateInfo = {
 		/*sType*/ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 		/*pNext*/ &externalImageInfo,
@@ -1778,13 +1779,14 @@ Error RenderingDeviceVulkan::_import_external_texture(VkFormat p_format, VkExten
 		/*pQueueFamilyIndices*/ nullptr,
 		/*initialLayout*/ VK_IMAGE_LAYOUT_UNDEFINED
 	};
-	VkResult err = vkCreateImage(device, &imageCreateInfo, nullptr, &imported_image);
+	external_image_extent = p_extent;
+	VkResult err = vkCreateImage(device, &imageCreateInfo, nullptr, &external_image);
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 
 	// Allocate memory
-    VkMemoryRequirements mem_requirements;
-    uint32_t mem_type_index;
-	err = _memory_type_from_properties(imported_image, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &mem_requirements, &mem_type_index);
+	VkMemoryRequirements mem_requirements;
+	uint32_t mem_type_index;
+	err = _memory_type_from_properties(external_image, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &mem_requirements, &mem_type_index);
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 
 	// TODO: handle platform
@@ -1794,22 +1796,88 @@ Error RenderingDeviceVulkan::_import_external_texture(VkFormat p_format, VkExten
 		/*handleType*/ externalHandleType,
 		/*fd*/ fd
 	};
-    VkMemoryAllocateInfo allocInfo = {
-            /*sType*/ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-            /*pNext*/ &importMemoryInfo,
-            /*allocationSize*/ mem_requirements.size,
-            /*memoryTypeIndex*/ mem_type_index
-    };
+	VkMemoryAllocateInfo allocInfo = {
+			/*sType*/ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+			/*pNext*/ &importMemoryInfo,
+			/*allocationSize*/ mem_requirements.size,
+			/*memoryTypeIndex*/ mem_type_index
+	};
 
 	VkDeviceMemory device_memory;
-    err = vkAllocateMemory(device, &allocInfo, NULL, &device_memory);
+	err = vkAllocateMemory(device, &allocInfo, NULL, &device_memory);
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
-    
-	err = vkBindImageMemory(device, imported_image, device_memory, 0);
+	
+	err = vkBindImageMemory(device, external_image, device_memory, 0);
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 
 	print_verbose("External texture imported: " + itos(p_extent.width) + "x" + itos(p_extent.height));
 	print_verbose("File Descriptor imported: " + itos(fd));
+
+	return OK;
+}
+
+Error RenderingDeviceVulkan::_copy_image(VkImage p_from_image, VkImage p_to_image, VkExtent3D extent) {
+	_THREAD_SAFE_METHOD_
+
+	// Create command buffer
+	VkCommandBuffer c_buffer;
+	const VkCommandBufferAllocateInfo allocInfo = {
+		/*sType*/ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+		/*pNext*/ nullptr,
+		/*commandPool*/ frames[frame].command_pool,
+		/*level*/ VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+		/*commandBufferCount*/ 1
+	};
+	VkResult err = vkAllocateCommandBuffers(device, &allocInfo, &c_buffer);
+	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
+	
+	const VkCommandBufferBeginInfo beginInfo = {
+		/*sType*/ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+		/*pNext*/ nullptr,
+		/*flags*/ VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+		/*pInheritanceInfo*/ nullptr
+	};
+	err = vkBeginCommandBuffer(c_buffer, &beginInfo);
+	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
+
+	// Copy image
+	VkOffset3D zero_offset = { 0, 0, 0 };
+	VkImageSubresourceLayers empty_layer = {
+		/*aspectMask*/ VK_IMAGE_ASPECT_COLOR_BIT,
+		/*mipLevel*/ 1,
+		/*baseArrayLayer*/ 0,
+		/*layerCount*/ 1
+	};
+	VkImageCopy image_copy_region = {
+		/*srcSubresource*/ empty_layer,
+		/*srcOffset*/ zero_offset,
+		/*dstSubresource*/ empty_layer,
+		/*dstOffset*/ zero_offset,
+		/*extent*/ extent,
+	};
+	vkCmdCopyImage(c_buffer, p_from_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, p_to_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &image_copy_region);
+
+	// Submit command buffer
+	vkEndCommandBuffer(c_buffer);
+
+	const VkSubmitInfo submitInfo = {
+		/*sType*/ VK_STRUCTURE_TYPE_SUBMIT_INFO,
+		/*pNext*/ NULL,
+		/*waitSemaphoreCount*/ 0,
+		/*pWaitSemaphores*/ NULL,
+		/*pWaitDstStageMask*/ 0,
+		/*commandBufferCount*/ 1,
+		/*pCommandBuffers*/ &c_buffer,
+		/*signalSemaphoreCount*/ 0,
+		/*pSignalSemaphores*/ NULL
+	};
+	err = vkQueueSubmit(context->get_graphics_queue(), 1, &submitInfo, VK_NULL_HANDLE);
+	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
+
+	err = vkQueueWaitIdle(context->get_graphics_queue());
+	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
+
+	vkFreeCommandBuffers(device, frames[frame].command_pool, 1, &c_buffer);
 
 	return OK;
 }
@@ -8751,6 +8819,9 @@ void RenderingDeviceVulkan::swap_buffers() {
 
 	_finalize_command_bufers();
 
+	// Copy render result to external image
+	_copy_image(context->get_swapchain_image(), external_image, external_image_extent);
+
 	screen_prepared = false;
 	// Swap buffers.
 	context->swap_buffers();
@@ -9126,14 +9197,15 @@ void RenderingDeviceVulkan::initialize(VulkanContext *p_context, bool p_local_de
 	// Check to make sure DescriptorPoolKey is good.
 	static_assert(sizeof(uint64_t) * 3 >= UNIFORM_TYPE_MAX * sizeof(uint16_t));
 
-	int fd;
+	VkFormat format = p_context->get_screen_format();
 	VkExtent3D extent = {
 		static_cast<uint32_t>(p_context->window_get_width()),
 		static_cast<uint32_t>(p_context->window_get_height()),
 		1
 	};
-	_create_external_texture(p_context->get_screen_format(), extent, &fd);
-	_import_external_texture(p_context->get_screen_format(), extent, fd);
+	int fd;
+	_create_external_image(format, extent, &fd);
+	_import_external_image(format, extent, fd);
 
 	draw_list = nullptr;
 	draw_list_count = 0;

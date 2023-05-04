@@ -287,6 +287,7 @@ public:
 	VkPhysicalDevice get_physical_device();
 	VkInstance get_instance() { return inst; }
 	int get_swapchain_image_count() const;
+	VkImage get_swapchain_image(DisplayServer::WindowID p_window = 0) const;
 	VkQueue get_graphics_queue() const;
 	uint32_t get_graphics_queue_family_index() const;
 
