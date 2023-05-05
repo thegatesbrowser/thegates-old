@@ -1955,7 +1955,7 @@ Error VulkanContext::_update_swap_chain(Window *window) {
 #ifdef THE_GATES_SANDBOX
 	uint32_t imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 #else
-	uint32_t imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	uint32_t imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT; // TODO: remove dst
 #endif
 
 	VkSwapchainCreateInfoKHR swapchain_ci = {

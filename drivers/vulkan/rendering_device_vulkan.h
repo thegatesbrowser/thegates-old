@@ -165,11 +165,16 @@ class RenderingDeviceVulkan : public RenderingDevice {
 	Vector<uint8_t> _texture_get_data_from_image(Texture *tex, VkImage p_image, VmaAllocation p_allocation, uint32_t p_layer, bool p_2d = false);
 	Error _texture_update(RID p_texture, uint32_t p_layer, const Vector<uint8_t> &p_data, BitField<BarrierMask> p_post_barrier, bool p_use_setup_queue);
 
-	VkExtent3D external_image_extent;
+	// External image
 	VkImage external_image;
+	VkFormat external_image_format;
+	VkExtent3D external_image_extent;
+	int external_image_fd = -1;
+	bool tg_main_process = true;
+
 	VkResult _memory_type_from_properties(VkImage image, VkMemoryPropertyFlags properties, VkMemoryRequirements *p_mem_requirements, uint32_t *p_memory_type_bits);
-	Error _create_external_image(VkFormat p_format, VkExtent3D p_extent, int *fd);
-	Error _import_external_image(VkFormat p_format, VkExtent3D p_extent, int fd);
+	Error _create_external_image(VkFormat p_format, VkExtent3D p_extent, VkImageUsageFlags usage, int *fd);
+	Error _import_external_image(VkFormat p_format, VkExtent3D p_extent, VkImageUsageFlags usage, int fd);
 	Error _copy_image(VkImage p_from_image, VkImage p_to_image, VkExtent3D extent);
 
 	/*****************/
