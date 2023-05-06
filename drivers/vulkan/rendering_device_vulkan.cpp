@@ -1734,7 +1734,7 @@ Error RenderingDeviceVulkan::_create_external_image(VkFormat p_format, VkExtent3
 	err = vkBindImageMemory(device, external_image, device_memory, 0);
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 
-	print_verbose("External texture created: " + itos(p_extent.width) + "x" + itos(p_extent.height));
+	print_line("External texture created: " + itos(p_extent.width) + "x" + itos(p_extent.height));
 
 	// Create file descriptor
 	// TODO: handle platform
@@ -1748,9 +1748,20 @@ Error RenderingDeviceVulkan::_create_external_image(VkFormat p_format, VkExtent3
 	err = vkGetMemoryFdKHR(device, &memoryGetInfo, fd);
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 
-	print_verbose("File Descriptor created: " + itos(*fd));
+	print_line("File Descriptor created: " + itos(*fd));
 
 	return OK;
+}
+
+int RenderingDeviceVulkan::create_external_texture(int p_width, int p_height) {
+	external_image_format = context->get_screen_format();
+	external_image_extent = {
+		static_cast<uint32_t>(p_width),
+		static_cast<uint32_t>(p_height),
+		1
+	};
+	_create_external_image(external_image_format, external_image_extent, VK_IMAGE_USAGE_TRANSFER_DST_BIT, &external_image_fd);
+	return external_image_fd;
 }
 
 Error RenderingDeviceVulkan::_import_external_image(VkFormat p_format, VkExtent3D p_extent, VkImageUsageFlags usage, int fd) {
@@ -1808,8 +1819,8 @@ Error RenderingDeviceVulkan::_import_external_image(VkFormat p_format, VkExtent3
 	err = vkBindImageMemory(device, external_image, device_memory, 0);
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 
-	print_verbose("External texture imported: " + itos(p_extent.width) + "x" + itos(p_extent.height));
-	print_verbose("File Descriptor imported: " + itos(fd));
+	print_line("External texture imported: " + itos(p_extent.width) + "x" + itos(p_extent.height));
+	print_line("File Descriptor imported: " + itos(fd));
 
 	return OK;
 }
@@ -9211,7 +9222,6 @@ void RenderingDeviceVulkan::initialize(VulkanContext *p_context, bool p_local_de
 		static_cast<uint32_t>(p_context->window_get_height()),
 		1
 	};
-	// _create_external_image(external_image_format, external_image_extent, VK_IMAGE_USAGE_TRANSFER_DST_BIT, &external_image_fd);
 	_import_external_image(external_image_format, external_image_extent, VK_IMAGE_USAGE_TRANSFER_DST_BIT, external_image_fd);
 #endif
 

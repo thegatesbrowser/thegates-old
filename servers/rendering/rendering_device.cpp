@@ -704,6 +704,8 @@ Error RenderingDevice::_reflect_spirv(const Vector<ShaderStageSPIRVData> &p_spir
 }
 
 void RenderingDevice::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("create_external_texture", "width", "height"), &RenderingDevice::create_external_texture);
+
 	ClassDB::bind_method(D_METHOD("texture_create", "format", "view", "data"), &RenderingDevice::_texture_create, DEFVAL(Array()));
 	ClassDB::bind_method(D_METHOD("texture_create_shared", "view", "with_texture"), &RenderingDevice::_texture_create_shared);
 	ClassDB::bind_method(D_METHOD("texture_create_shared_from_slice", "view", "with_texture", "layer", "mipmap", "mipmaps", "slice_type"), &RenderingDevice::_texture_create_shared_from_slice, DEFVAL(1), DEFVAL(TEXTURE_SLICE_2D));
