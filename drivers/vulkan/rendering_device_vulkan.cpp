@@ -1825,6 +1825,18 @@ Error RenderingDeviceVulkan::_import_external_image(VkFormat p_format, VkExtent3
 	return OK;
 }
 
+Error RenderingDeviceVulkan::import_external_image(int fd) {
+	tg_main_process = false;
+	external_image_fd = fd;
+	external_image_format = context->get_screen_format();
+	external_image_extent = {
+		static_cast<uint32_t>(context->window_get_width()),
+		static_cast<uint32_t>(context->window_get_height()),
+		1
+	};
+	return _import_external_image(external_image_format, external_image_extent, VK_IMAGE_USAGE_TRANSFER_DST_BIT, external_image_fd);
+}
+
 Error RenderingDeviceVulkan::_copy_image(VkImage p_from_image, VkImage p_to_image, VkExtent3D extent) {
 	_THREAD_SAFE_METHOD_
 
@@ -8835,6 +8847,7 @@ void RenderingDeviceVulkan::swap_buffers() {
 		}
 		else {
 			_copy_image(context->get_swapchain_image(), external_image, external_image_extent);
+			print_verbose("copy from swapchaing to external image");
 		}
 	}
 
@@ -9212,18 +9225,6 @@ void RenderingDeviceVulkan::initialize(VulkanContext *p_context, bool p_local_de
 
 	// Check to make sure DescriptorPoolKey is good.
 	static_assert(sizeof(uint64_t) * 3 >= UNIFORM_TYPE_MAX * sizeof(uint16_t));
-
-	// External texture
-#ifdef THE_GATES_SANDBOX
-	tg_main_process = false;
-	external_image_format = p_context->get_screen_format();
-	external_image_extent = {
-		static_cast<uint32_t>(p_context->window_get_width()),
-		static_cast<uint32_t>(p_context->window_get_height()),
-		1
-	};
-	_import_external_image(external_image_format, external_image_extent, VK_IMAGE_USAGE_TRANSFER_DST_BIT, external_image_fd);
-#endif
 
 	draw_list = nullptr;
 	draw_list_count = 0;

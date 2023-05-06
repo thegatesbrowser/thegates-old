@@ -520,6 +520,7 @@ public:
 	};
 
 	virtual int create_external_texture(int p_width, int p_height) { return -1; };
+	virtual Error import_external_image(int fd) { return ERR_METHOD_NOT_FOUND; };
 
 	virtual RID texture_create(const TextureFormat &p_format, const TextureView &p_view, const Vector<Vector<uint8_t>> &p_data = Vector<Vector<uint8_t>>()) = 0;
 	virtual RID texture_create_shared(const TextureView &p_view, RID p_with_texture) = 0;
