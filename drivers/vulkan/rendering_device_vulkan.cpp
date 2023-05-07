@@ -1671,6 +1671,8 @@ VkResult RenderingDeviceVulkan::_memory_type_from_properties(
 			// Type is available, does it match user properties?
 			if ((memoryProperties.memoryTypes[i].propertyFlags & properties) == properties) {
 				*p_memory_type_bits = i;
+
+				print_line("mem_requirements.size=" + itos(p_mem_requirements->size) + "; mem_type_index=" + itos(i));
 				return VK_SUCCESS;
 			}
 		}
@@ -1686,7 +1688,7 @@ Error RenderingDeviceVulkan::_create_external_image(VkFormat p_format, VkExtent3
 	VkExternalMemoryHandleTypeFlagBits externalHandleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT; // TODO: handle platform
 	VkExternalMemoryImageCreateInfo externalImageInfo = {
 		/*sType*/ VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
-		/*pNext*/ NULL,
+		/*pNext*/ nullptr,
 		/*handleTypes*/ externalHandleType
 	};
 	VkImageCreateInfo imageCreateInfo = {
@@ -1716,19 +1718,19 @@ Error RenderingDeviceVulkan::_create_external_image(VkFormat p_format, VkExtent3
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 
 	VkExportMemoryAllocateInfo exportAllocInfo = {
-			/*sType*/ VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO,
-			/*pNext*/ nullptr,
-			/*handleTypes*/ externalHandleType
+		/*sType*/ VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO,
+		/*pNext*/ nullptr,
+		/*handleTypes*/ externalHandleType
 	};
 	VkMemoryAllocateInfo allocInfo = {
-			/*sType*/ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-			/*pNext*/ &exportAllocInfo,
-			/*allocationSize*/ mem_requirements.size,
-			/*memoryTypeIndex*/ mem_type_index
+		/*sType*/ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+		/*pNext*/ &exportAllocInfo,
+		/*allocationSize*/ mem_requirements.size,
+		/*memoryTypeIndex*/ mem_type_index
 	};
 
 	VkDeviceMemory device_memory;
-	err = vkAllocateMemory(device, &allocInfo, NULL, &device_memory);
+	err = vkAllocateMemory(device, &allocInfo, nullptr, &device_memory);
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 	
 	err = vkBindImageMemory(device, external_image, device_memory, 0);
@@ -1760,7 +1762,7 @@ int RenderingDeviceVulkan::create_external_texture(int p_width, int p_height) {
 		static_cast<uint32_t>(p_height),
 		1
 	};
-	_create_external_image(external_image_format, external_image_extent, VK_IMAGE_USAGE_TRANSFER_DST_BIT, &external_image_fd);
+	_create_external_image(external_image_format, external_image_extent, VK_IMAGE_USAGE_TRANSFER_SRC_BIT, &external_image_fd);
 	return external_image_fd;
 }
 
@@ -1769,7 +1771,7 @@ Error RenderingDeviceVulkan::_import_external_image(VkFormat p_format, VkExtent3
 	VkExternalMemoryHandleTypeFlagBits externalHandleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT; // TODO: handle platform
 	VkExternalMemoryImageCreateInfo externalImageInfo = {
 		/*sType*/ VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
-		/*pNext*/ NULL,
+		/*pNext*/ nullptr,
 		/*handleTypes*/ externalHandleType
 	};
 	VkImageCreateInfo imageCreateInfo = {
@@ -1806,14 +1808,15 @@ Error RenderingDeviceVulkan::_import_external_image(VkFormat p_format, VkExtent3
 		/*fd*/ fd
 	};
 	VkMemoryAllocateInfo allocInfo = {
-			/*sType*/ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-			/*pNext*/ &importMemoryInfo,
-			/*allocationSize*/ mem_requirements.size,
-			/*memoryTypeIndex*/ mem_type_index
+		/*sType*/ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+		/*pNext*/ &importMemoryInfo,
+		/*allocationSize*/ mem_requirements.size,
+		/*memoryTypeIndex*/ mem_type_index
 	};
 
 	VkDeviceMemory device_memory;
-	err = vkAllocateMemory(device, &allocInfo, NULL, &device_memory);
+	err = vkAllocateMemory(device, &allocInfo, nullptr, &device_memory);
+	print_verbose("vkAllocateMemory err: " + itos(err));
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 	
 	err = vkBindImageMemory(device, external_image, device_memory, 0);

@@ -511,7 +511,7 @@ void Main::print_help(const char *p_binary) {
 
 #ifdef THE_GATES_SANDBOX
 	OS::get_singleton()->print("TheGates options:\n");
-	OS::get_singleton()->print("  --external_image <fd>             Import external image file description.\n");
+	OS::get_singleton()->print("  --external-image <fd>             Import external image file description.\n");
 	OS::get_singleton()->print("\n");
 #endif
 }
@@ -1468,14 +1468,14 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 				goto error;
 			}
 #ifdef THE_GATES_SANDBOX
-		} else if (I->get() == "--external_image") {
+		} else if (I->get() == "--external-image") {
 
 			if (I->next()) {
 				external_image_fd = I->next()->get().to_int();
 
 				N = I->next()->next();
 			} else {
-				OS::get_singleton()->print("Missing --external_image argument, aborting.\n");
+				OS::get_singleton()->print("Missing --external-image argument, aborting.\n");
 				goto error;
 			}
 #endif
