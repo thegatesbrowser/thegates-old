@@ -116,6 +116,10 @@
 #include "modules/gdscript/gdscript.h"
 #endif
 
+#ifdef THE_GATES_SANDBOX
+#include <sys/syscall.h>
+#endif
+
 /* Static members */
 
 // Singletons
@@ -227,6 +231,7 @@ bool profile_gpu = false;
 // TheGates
 #ifdef THE_GATES_SANDBOX
 static int external_image_fd = -1;
+static int main_pid = -1;
 #endif
 
 // Constants.
@@ -513,6 +518,7 @@ void Main::print_help(const char *p_binary) {
 #ifdef THE_GATES_SANDBOX
 	OS::get_singleton()->print("TheGates options:\n");
 	OS::get_singleton()->print("  --external-image <fd>             Import external image file description.\n");
+	OS::get_singleton()->print("  --main-pid <pid>                  Main process id.\n");
 	OS::get_singleton()->print("\n");
 #endif
 }
@@ -1479,6 +1485,16 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 				OS::get_singleton()->print("Missing --external-image argument, aborting.\n");
 				goto error;
 			}
+		} else if (I->get() == "--main-pid") {
+
+			if (I->next()) {
+				main_pid = I->next()->get().to_int();
+
+				N = I->next()->next();
+			} else {
+				OS::get_singleton()->print("Missing --main-pid argument, aborting.\n");
+				goto error;
+			}
 #endif
 		} else if (I->get() == "--" || I->get() == "++") {
 			adding_user_args = true;
@@ -2313,15 +2329,6 @@ Error Main::setup2() {
 			Engine::get_singleton()->set_write_movie_path(String());
 		}
 	}
-
-	// External texture
-#ifdef THE_GATES_SANDBOX
-	Error err = rendering_server->get_rendering_device()->import_external_image(external_image_fd);
-	if (err != OK) {
-		ERR_PRINT("Unable to import external image " + itos(external_image_fd));
-		return err;
-	}
-#endif
 
 #ifdef UNIX_ENABLED
 	// Print warning after initializing the renderer but before initializing audio.
@@ -3335,6 +3342,19 @@ bool Main::start() {
 
 	OS::get_singleton()->benchmark_end_measure("startup_begin");
 	OS::get_singleton()->benchmark_dump();
+
+	// External texture
+#ifdef THE_GATES_SANDBOX
+	int pid_fd = syscall(SYS_pidfd_open, main_pid, 0);
+	external_image_fd = syscall(SYS_pidfd_getfd, pid_fd, external_image_fd, 0);
+	print_line("Main process pid " + itos(main_pid) + ". PidFd " + itos(pid_fd) + ". Fd " + itos(external_image_fd));
+
+	Error err = rendering_server->get_rendering_device()->import_external_image(external_image_fd);
+	if (err != OK) {
+		ERR_PRINT("Unable to import external image " + itos(external_image_fd));
+		return false;
+	}
+#endif
 
 	return true;
 }

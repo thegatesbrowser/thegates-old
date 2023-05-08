@@ -1711,6 +1711,8 @@ Error RenderingDeviceVulkan::_create_external_image(VkFormat p_format, VkExtent3
 	VkResult err = vkCreateImage(device, &imageCreateInfo, nullptr, &external_image);
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 
+	print_line("format: " + itos(p_format));
+
 	// Allocate memory
 	VkMemoryRequirements mem_requirements;
 	uint32_t mem_type_index;
@@ -1752,6 +1754,13 @@ Error RenderingDeviceVulkan::_create_external_image(VkFormat p_format, VkExtent3
 
 	print_line("File Descriptor created: " + itos(*fd));
 
+	// Get fd properties
+	VkMemoryFdPropertiesKHR memory_fd_properties;
+	err = vkGetMemoryFdPropertiesKHR(device, VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT, external_image_fd, &memory_fd_properties);
+	print_line("vkGetMemoryFdPropertiesKHR " + itos(external_image_fd) + ". Res: " + itos(err));
+	ERR_FAIL_COND_V(err, ERR_INVALID_DATA);
+	print_line("memory_fd_properties. sType: " + itos(memory_fd_properties.sType) + ". memoryTypeBits: " + itos(memory_fd_properties.memoryTypeBits));
+
 	return OK;
 }
 
@@ -1763,10 +1772,18 @@ int RenderingDeviceVulkan::create_external_texture(int p_width, int p_height) {
 		1
 	};
 	_create_external_image(external_image_format, external_image_extent, VK_IMAGE_USAGE_TRANSFER_SRC_BIT, &external_image_fd);
+
 	return external_image_fd;
 }
 
 Error RenderingDeviceVulkan::_import_external_image(VkFormat p_format, VkExtent3D p_extent, VkImageUsageFlags usage, int fd) {
+	// Get fd properties
+	VkMemoryFdPropertiesKHR memory_fd_properties;
+	VkResult err = vkGetMemoryFdPropertiesKHR(device, VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT, fd, &memory_fd_properties);
+	print_line("vkGetMemoryFdPropertiesKHR " + itos(external_image_fd) + ". Res: " + itos(err));
+	ERR_FAIL_COND_V(err, ERR_INVALID_DATA);
+	print_line("memory_fd_properties. sType: " + itos(memory_fd_properties.sType) + ". memoryTypeBits: " + itos(memory_fd_properties.memoryTypeBits));
+
 	// Crate external texture
 	VkExternalMemoryHandleTypeFlagBits externalHandleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT; // TODO: handle platform
 	VkExternalMemoryImageCreateInfo externalImageInfo = {
@@ -1791,8 +1808,10 @@ Error RenderingDeviceVulkan::_import_external_image(VkFormat p_format, VkExtent3
 		/*pQueueFamilyIndices*/ nullptr,
 		/*initialLayout*/ VK_IMAGE_LAYOUT_UNDEFINED
 	};
-	VkResult err = vkCreateImage(device, &imageCreateInfo, nullptr, &external_image);
+	err = vkCreateImage(device, &imageCreateInfo, nullptr, &external_image);
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
+
+	print_line("format: " + itos(p_format));
 
 	// Allocate memory
 	VkMemoryRequirements mem_requirements;
@@ -1816,7 +1835,7 @@ Error RenderingDeviceVulkan::_import_external_image(VkFormat p_format, VkExtent3
 
 	VkDeviceMemory device_memory;
 	err = vkAllocateMemory(device, &allocInfo, nullptr, &device_memory);
-	print_verbose("vkAllocateMemory err: " + itos(err));
+	print_verbose("vkAllocateMemory err: " + itos(err) + ". fd " + itos(fd));
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 	
 	err = vkBindImageMemory(device, external_image, device_memory, 0);
@@ -1837,12 +1856,11 @@ Error RenderingDeviceVulkan::import_external_image(int fd) {
 		static_cast<uint32_t>(context->window_get_height()),
 		1
 	};
+
 	return _import_external_image(external_image_format, external_image_extent, VK_IMAGE_USAGE_TRANSFER_DST_BIT, external_image_fd);
 }
 
 Error RenderingDeviceVulkan::_copy_image(VkImage p_from_image, VkImage p_to_image, VkExtent3D extent) {
-	_THREAD_SAFE_METHOD_
-
 	// Create command buffer
 	VkCommandBuffer c_buffer;
 	const VkCommandBufferAllocateInfo allocInfo = {
@@ -1886,14 +1904,14 @@ Error RenderingDeviceVulkan::_copy_image(VkImage p_from_image, VkImage p_to_imag
 
 	const VkSubmitInfo submitInfo = {
 		/*sType*/ VK_STRUCTURE_TYPE_SUBMIT_INFO,
-		/*pNext*/ NULL,
+		/*pNext*/ nullptr,
 		/*waitSemaphoreCount*/ 0,
-		/*pWaitSemaphores*/ NULL,
+		/*pWaitSemaphores*/ nullptr,
 		/*pWaitDstStageMask*/ 0,
 		/*commandBufferCount*/ 1,
 		/*pCommandBuffers*/ &c_buffer,
 		/*signalSemaphoreCount*/ 0,
-		/*pSignalSemaphores*/ NULL
+		/*pSignalSemaphores*/ nullptr
 	};
 	err = vkQueueSubmit(context->get_graphics_queue(), 1, &submitInfo, VK_NULL_HANDLE);
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
