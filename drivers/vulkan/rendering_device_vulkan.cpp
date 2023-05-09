@@ -1743,6 +1743,18 @@ Error RenderingDeviceVulkan::_create_external_texture(VkFormat p_format, VkExten
 
 	res = vmaCreateImage(allocator, &image_create_info, &allocInfo, &ext_texture.image, &ext_texture.allocation, &ext_texture.allocation_info);
 	ERR_FAIL_COND_V_MSG(res, ERR_CANT_CREATE, "vmaCreateImage failed with error " + itos(res) + ".");
+	ext_texture.type = TEXTURE_TYPE_2D;
+	ext_texture.format = DATA_FORMAT_B8G8R8A8_UNORM;
+	ext_texture.width = image_create_info.extent.width;
+	ext_texture.height = image_create_info.extent.height;
+	ext_texture.depth = image_create_info.extent.depth;
+	ext_texture.layers = image_create_info.arrayLayers;
+	ext_texture.mipmaps = image_create_info.mipLevels;
+	ext_texture.base_mipmap = 0;
+	ext_texture.base_layer = 0;
+	ext_texture.is_resolve_buffer = false;
+	ext_texture.usage_flags = TEXTURE_USAGE_COLOR_ATTACHMENT_BIT | TEXTURE_USAGE_CAN_COPY_TO_BIT;
+	ext_texture.samples = TEXTURE_SAMPLES_1;
 
 	print_line("External texture created: " + itos(p_extent.width) + "x" + itos(p_extent.height));
 
@@ -1803,7 +1815,7 @@ Error RenderingDeviceVulkan::_import_external_texture(VkFormat p_format, VkExten
 
 	// Allocate memory
 	VmaAllocationCreateInfo allocInfo;
-	allocInfo.flags = 0;
+	allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
 	allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 	allocInfo.requiredFlags = 0;
 	allocInfo.preferredFlags = 0;
@@ -1871,8 +1883,8 @@ Error RenderingDeviceVulkan::_copy_image(VkImage p_from_image, VkImage p_to_imag
 		/*level*/ VK_COMMAND_BUFFER_LEVEL_PRIMARY,
 		/*commandBufferCount*/ 1
 	};
-	VkResult err = vkAllocateCommandBuffers(device, &allocInfo, &c_buffer);
-	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
+	VkResult res = vkAllocateCommandBuffers(device, &allocInfo, &c_buffer);
+	ERR_FAIL_COND_V(res, ERR_CANT_CREATE);
 	
 	const VkCommandBufferBeginInfo beginInfo = {
 		/*sType*/ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -1880,8 +1892,8 @@ Error RenderingDeviceVulkan::_copy_image(VkImage p_from_image, VkImage p_to_imag
 		/*flags*/ VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
 		/*pInheritanceInfo*/ nullptr
 	};
-	err = vkBeginCommandBuffer(c_buffer, &beginInfo);
-	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
+	res = vkBeginCommandBuffer(c_buffer, &beginInfo);
+	ERR_FAIL_COND_V(res, ERR_CANT_CREATE);
 
 	// Copy image
 	VkOffset3D zero_offset = { 0, 0, 0 };
@@ -1901,7 +1913,8 @@ Error RenderingDeviceVulkan::_copy_image(VkImage p_from_image, VkImage p_to_imag
 	vkCmdCopyImage(c_buffer, p_from_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, p_to_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &image_copy_region);
 
 	// Submit command buffer
-	vkEndCommandBuffer(c_buffer);
+	res = vkEndCommandBuffer(c_buffer);
+	ERR_FAIL_COND_V(res, ERR_CANT_CREATE);
 
 	const VkSubmitInfo submitInfo = {
 		/*sType*/ VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -1914,11 +1927,11 @@ Error RenderingDeviceVulkan::_copy_image(VkImage p_from_image, VkImage p_to_imag
 		/*signalSemaphoreCount*/ 0,
 		/*pSignalSemaphores*/ nullptr
 	};
-	err = vkQueueSubmit(context->get_graphics_queue(), 1, &submitInfo, VK_NULL_HANDLE);
-	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
+	res = vkQueueSubmit(context->get_graphics_queue(), 1, &submitInfo, VK_NULL_HANDLE);
+	ERR_FAIL_COND_V(res, ERR_CANT_CREATE);
 
-	err = vkQueueWaitIdle(context->get_graphics_queue());
-	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
+	res = vkQueueWaitIdle(context->get_graphics_queue());
+	ERR_FAIL_COND_V(res, ERR_CANT_CREATE);
 
 	vkFreeCommandBuffers(device, frames[frame].command_pool, 1, &c_buffer);
 
@@ -8885,7 +8898,7 @@ void RenderingDeviceVulkan::swap_buffers() {
 			_copy_image(context->get_swapchain_image(), ext_texture.image, extent);
 		}
 	}
-	if ((counter > 1000) && !log.is_empty()) {
+	if ((counter > 300) && !log.is_empty()) {
 		print_line(log);
 		counter = 0;
 	}
