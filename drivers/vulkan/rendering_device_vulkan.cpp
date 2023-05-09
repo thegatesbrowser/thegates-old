@@ -1800,37 +1800,43 @@ Error RenderingDeviceVulkan::_import_external_texture(VkFormat p_format, VkExten
 		/*pQueueFamilyIndices*/ nullptr,
 		/*initialLayout*/ VK_IMAGE_LAYOUT_UNDEFINED
 	};
-	VkResult err = vkCreateImage(device, &image_create_info, nullptr, &ext_texture.image);
-	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
-
-	// Get memory requirements
-	VkMemoryRequirements memory_requirements;
-	uint32_t mem_type_index;
-	err = _memory_type_from_properties(ext_texture.image, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &memory_requirements, &mem_type_index);
-	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 
 	// Allocate memory
+	VmaAllocationCreateInfo allocInfo;
+	allocInfo.flags = 0;
+	allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+	allocInfo.requiredFlags = 0;
+	allocInfo.preferredFlags = 0;
+	allocInfo.memoryTypeBits = 0;
+	allocInfo.pUserData = nullptr;
+
+	uint32_t mem_type_index = 0;
+	vmaFindMemoryTypeIndexForImageInfo(allocator, &image_create_info, &allocInfo, &mem_type_index);
+
+	// Create pool with import memory
 	// TODO: handle platform
-	VkImportMemoryFdInfoKHR import_memory_info = {
+	import_memory_info = {
 		/*sType*/ VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
 		/*pNext*/ nullptr,
 		/*handleType*/ ext_handle_type,
 		/*fd*/ fd
 	};
-	VkMemoryAllocateInfo allocInfo = {
-		/*sType*/ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-		/*pNext*/ &import_memory_info,
-		/*allocationSize*/ memory_requirements.size,
-		/*memoryTypeIndex*/ mem_type_index
-	};
+	VmaPoolCreateInfo pool_create_info;
+	pool_create_info.memoryTypeIndex = mem_type_index;
+	pool_create_info.flags = 0;
+	pool_create_info.blockSize = 0;
+	pool_create_info.minBlockCount = 0;
+	pool_create_info.maxBlockCount = SIZE_MAX;
+	pool_create_info.minAllocationAlignment = 0;
+	pool_create_info.pMemoryAllocateNext = &import_memory_info;
+	VkResult res = vmaCreatePool(allocator, &pool_create_info, &ext_image_pool);
+	ERR_FAIL_COND_V_MSG(res, ERR_CANT_CREATE, "vmaCreatePool failed with error " + itos(res) + ".");
 
-	VkDeviceMemory device_memory;
-	err = vkAllocateMemory(device, &allocInfo, nullptr, &device_memory);
-	print_verbose("vkAllocateMemory err: " + itos(err) + ". fd " + itos(fd));
-	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
-	
-	err = vkBindImageMemory(device, ext_texture.image, device_memory, 0);
-	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
+	// Allocate using pool
+	allocInfo.pool = ext_image_pool;
+
+	res = vmaCreateImage(allocator, &image_create_info, &allocInfo, &ext_texture.image, &ext_texture.allocation, &ext_texture.allocation_info);
+	ERR_FAIL_COND_V_MSG(res, ERR_CANT_CREATE, "vmaCreateImage failed with error " + itos(res) + ".");
 
 	print_line("External texture imported: " + itos(p_extent.width) + "x" + itos(p_extent.height));
 	print_line("File Descriptor imported: " + itos(fd));
@@ -1839,6 +1845,10 @@ Error RenderingDeviceVulkan::_import_external_texture(VkFormat p_format, VkExten
 }
 
 Error RenderingDeviceVulkan::import_external_texture(int fd) {
+	if (fd == -1) {
+		return ERR_INVALID_PARAMETER;
+	}
+
 	tg_main_process = false;
 	ext_image_fd = fd;
 	VkFormat format = context->get_screen_format();
