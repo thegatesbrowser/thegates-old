@@ -1683,17 +1683,17 @@ VkResult RenderingDeviceVulkan::_memory_type_from_properties(
 	return VK_ERROR_FORMAT_NOT_SUPPORTED;
 }
 
-Error RenderingDeviceVulkan::_create_external_image(VkFormat p_format, VkExtent3D p_extent, VkImageUsageFlags usage, int *fd) {
+Error RenderingDeviceVulkan::_create_external_texture(VkFormat p_format, VkExtent3D p_extent, VkImageUsageFlags usage, int *fd) {
 	// Crate external texture
-	VkExternalMemoryHandleTypeFlagBits external_handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT; // TODO: handle platform
-	VkExternalMemoryImageCreateInfo external_image_info = {
+	VkExternalMemoryHandleTypeFlagBits ext_handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT; // TODO: handle platform
+	VkExternalMemoryImageCreateInfo ext_image_info = {
 		/*sType*/ VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
 		/*pNext*/ nullptr,
-		/*handleTypes*/ external_handle_type
+		/*handleTypes*/ ext_handle_type
 	};
 	VkImageCreateInfo image_create_info = {
 		/*sType*/ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-		/*pNext*/ &external_image_info,
+		/*pNext*/ &ext_image_info,
 		/*flags*/ 0,
 		/*imageType*/ VK_IMAGE_TYPE_2D,
 		/*format*/ p_format,
@@ -1709,12 +1709,9 @@ Error RenderingDeviceVulkan::_create_external_image(VkFormat p_format, VkExtent3
 		/*initialLayout*/ VK_IMAGE_LAYOUT_UNDEFINED
 	};
 
-	print_line("format: " + itos(p_format));
-
 	// Allocate memory
 	VmaAllocationCreateInfo allocInfo;
 	allocInfo.flags = 0;
-	allocInfo.pool = nullptr;
 	allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 	allocInfo.requiredFlags = 0;
 	allocInfo.preferredFlags = 0;
@@ -1728,21 +1725,24 @@ Error RenderingDeviceVulkan::_create_external_image(VkFormat p_format, VkExtent3
 	export_alloc_info = {
 		/*sType*/ VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO,
 		/*pNext*/ nullptr,
-		/*handleTypes*/ external_handle_type
+		/*handleTypes*/ ext_handle_type
 	};
 	VmaPoolCreateInfo pool_create_info;
 	pool_create_info.memoryTypeIndex = mem_type_index;
+	pool_create_info.flags = 0;
+	pool_create_info.blockSize = 0;
 	pool_create_info.minBlockCount = 0;
+	pool_create_info.maxBlockCount = SIZE_MAX;
 	pool_create_info.minAllocationAlignment = 0;
 	pool_create_info.pMemoryAllocateNext = &export_alloc_info;
-	VkResult res = vmaCreatePool(allocator, &pool_create_info, &external_image_pool);
+	VkResult res = vmaCreatePool(allocator, &pool_create_info, &ext_image_pool);
 	ERR_FAIL_COND_V_MSG(res, ERR_CANT_CREATE, "vmaCreatePool failed with error " + itos(res) + ".");
 
 	// Allocate using pool
-	allocInfo.pool = external_image_pool;
+	allocInfo.pool = ext_image_pool;
 
-	VkResult err = vmaCreateImage(allocator, &image_create_info, &allocInfo, &external_texure.image, &external_texure.allocation, &external_texure.allocation_info);
-	ERR_FAIL_COND_V_MSG(err, ERR_CANT_CREATE, "vmaCreateImage failed with error " + itos(err) + ".");
+	res = vmaCreateImage(allocator, &image_create_info, &allocInfo, &ext_texture.image, &ext_texture.allocation, &ext_texture.allocation_info);
+	ERR_FAIL_COND_V_MSG(res, ERR_CANT_CREATE, "vmaCreateImage failed with error " + itos(res) + ".");
 
 	print_line("External texture created: " + itos(p_extent.width) + "x" + itos(p_extent.height));
 
@@ -1751,12 +1751,12 @@ Error RenderingDeviceVulkan::_create_external_image(VkFormat p_format, VkExtent3
 	VkMemoryGetFdInfoKHR memoryGetInfo = {
 		/*sType*/ VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,
 		/*pNext*/ nullptr,
-		/*memory*/ external_texure.allocation_info.deviceMemory,
-		/*handleType*/ external_handle_type
+		/*memory*/ ext_texture.allocation_info.deviceMemory,
+		/*handleType*/ ext_handle_type
 	};
 
-	err = vkGetMemoryFdKHR(device, &memoryGetInfo, fd);
-	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
+	res = vkGetMemoryFdKHR(device, &memoryGetInfo, fd);
+	ERR_FAIL_COND_V(res, ERR_CANT_CREATE);
 
 	print_line("File Descriptor created: " + itos(*fd));
 
@@ -1764,35 +1764,28 @@ Error RenderingDeviceVulkan::_create_external_image(VkFormat p_format, VkExtent3
 }
 
 int RenderingDeviceVulkan::create_external_texture(int p_width, int p_height) {
-	external_image_format = context->get_screen_format();
-	external_image_extent = {
+	VkFormat format = context->get_screen_format();
+	VkExtent3D extent = {
 		static_cast<uint32_t>(p_width),
 		static_cast<uint32_t>(p_height),
 		1
 	};
-	_create_external_image(external_image_format, external_image_extent, VK_IMAGE_USAGE_TRANSFER_SRC_BIT, &external_image_fd);
+	_create_external_texture(format, extent, VK_IMAGE_USAGE_TRANSFER_SRC_BIT, &ext_image_fd);
 
-	// Get fd properties
-	VkMemoryFdPropertiesKHR memory_fd_properties;
-	VkResult err = vkGetMemoryFdPropertiesKHR(device, VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT, external_image_fd, &memory_fd_properties);
-	print_line("vkGetMemoryFdPropertiesKHR " + itos(external_image_fd) + ". Res: " + itos(err));
-	ERR_FAIL_COND_V(err, ERR_INVALID_DATA);
-	print_line("memory_fd_properties. sType: " + itos(memory_fd_properties.sType) + ". memoryTypeBits: " + itos(memory_fd_properties.memoryTypeBits));
-
-	return external_image_fd;
+	return ext_image_fd;
 }
 
-Error RenderingDeviceVulkan::_import_external_image(VkFormat p_format, VkExtent3D p_extent, VkImageUsageFlags usage, int fd) {
+Error RenderingDeviceVulkan::_import_external_texture(VkFormat p_format, VkExtent3D p_extent, VkImageUsageFlags usage, int fd) {
 	// Crate external texture
-	VkExternalMemoryHandleTypeFlagBits external_handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT; // TODO: handle platform
-	VkExternalMemoryImageCreateInfo externalImageInfo = {
+	VkExternalMemoryHandleTypeFlagBits ext_handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT; // TODO: handle platform
+	VkExternalMemoryImageCreateInfo ext_image_info = {
 		/*sType*/ VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
 		/*pNext*/ nullptr,
-		/*handleTypes*/ external_handle_type
+		/*handleTypes*/ ext_handle_type
 	};
-	VkImageCreateInfo imageCreateInfo = {
+	VkImageCreateInfo image_create_info = {
 		/*sType*/ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-		/*pNext*/ &externalImageInfo,
+		/*pNext*/ &ext_image_info,
 		/*flags*/ 0,
 		/*imageType*/ VK_IMAGE_TYPE_2D,
 		/*format*/ p_format,
@@ -1807,28 +1800,26 @@ Error RenderingDeviceVulkan::_import_external_image(VkFormat p_format, VkExtent3
 		/*pQueueFamilyIndices*/ nullptr,
 		/*initialLayout*/ VK_IMAGE_LAYOUT_UNDEFINED
 	};
-	VkResult err = vkCreateImage(device, &imageCreateInfo, nullptr, &external_image);
+	VkResult err = vkCreateImage(device, &image_create_info, nullptr, &ext_texture.image);
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
-
-	print_line("format: " + itos(p_format));
 
 	// Get memory requirements
 	VkMemoryRequirements memory_requirements;
 	uint32_t mem_type_index;
-	err = _memory_type_from_properties(external_image, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &memory_requirements, &mem_type_index);
+	err = _memory_type_from_properties(ext_texture.image, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &memory_requirements, &mem_type_index);
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 
 	// Allocate memory
 	// TODO: handle platform
-	VkImportMemoryFdInfoKHR importMemoryInfo = {
+	VkImportMemoryFdInfoKHR import_memory_info = {
 		/*sType*/ VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
 		/*pNext*/ nullptr,
-		/*handleType*/ external_handle_type,
+		/*handleType*/ ext_handle_type,
 		/*fd*/ fd
 	};
 	VkMemoryAllocateInfo allocInfo = {
 		/*sType*/ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-		/*pNext*/ &importMemoryInfo,
+		/*pNext*/ &import_memory_info,
 		/*allocationSize*/ memory_requirements.size,
 		/*memoryTypeIndex*/ mem_type_index
 	};
@@ -1838,7 +1829,7 @@ Error RenderingDeviceVulkan::_import_external_image(VkFormat p_format, VkExtent3
 	print_verbose("vkAllocateMemory err: " + itos(err) + ". fd " + itos(fd));
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 	
-	err = vkBindImageMemory(device, external_image, device_memory, 0);
+	err = vkBindImageMemory(device, ext_texture.image, device_memory, 0);
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 
 	print_line("External texture imported: " + itos(p_extent.width) + "x" + itos(p_extent.height));
@@ -1847,24 +1838,17 @@ Error RenderingDeviceVulkan::_import_external_image(VkFormat p_format, VkExtent3
 	return OK;
 }
 
-Error RenderingDeviceVulkan::import_external_image(int fd) {
+Error RenderingDeviceVulkan::import_external_texture(int fd) {
 	tg_main_process = false;
-	external_image_fd = fd;
-	external_image_format = context->get_screen_format();
-	external_image_extent = {
+	ext_image_fd = fd;
+	VkFormat format = context->get_screen_format();
+	VkExtent3D extent = {
 		static_cast<uint32_t>(context->window_get_width()),
 		static_cast<uint32_t>(context->window_get_height()),
 		1
 	};
 
-	// Get fd properties
-	VkMemoryFdPropertiesKHR memory_fd_properties;
-	VkResult err = vkGetMemoryFdPropertiesKHR(device, VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT, fd, &memory_fd_properties);
-	print_line("vkGetMemoryFdPropertiesKHR " + itos(external_image_fd) + ". Res: " + itos(err));
-	ERR_FAIL_COND_V(err, ERR_INVALID_DATA);
-	print_line("memory_fd_properties. sType: " + itos(memory_fd_properties.sType) + ". memoryTypeBits: " + itos(memory_fd_properties.memoryTypeBits));
-
-	return _import_external_image(external_image_format, external_image_extent, VK_IMAGE_USAGE_TRANSFER_DST_BIT, external_image_fd);
+	return _import_external_texture(format, extent, VK_IMAGE_USAGE_TRANSFER_DST_BIT, ext_image_fd);
 }
 
 Error RenderingDeviceVulkan::_copy_image(VkImage p_from_image, VkImage p_to_image, VkExtent3D extent) {
@@ -8862,7 +8846,7 @@ VkSampleCountFlagBits RenderingDeviceVulkan::_ensure_supported_sample_count(Text
 	return VK_SAMPLE_COUNT_1_BIT;
 }
 
-int a = 0;
+int counter = 0;
 void RenderingDeviceVulkan::swap_buffers() {
 	ERR_FAIL_COND_MSG(local_device.is_valid(), "Local devices can't swap buffers.");
 	_THREAD_SAFE_METHOD_
@@ -8874,22 +8858,28 @@ void RenderingDeviceVulkan::swap_buffers() {
 	context->swap_buffers();
 
 	// Copy to/from external image
-	String log;
-	if (external_image) {
+	String log = "";
+	if (ext_texture.image) {
+		VkExtent3D extent = {
+			static_cast<uint32_t>(context->window_get_width()),
+			static_cast<uint32_t>(context->window_get_height()),
+			1
+		};
+
 		if (tg_main_process) {
 			log = "copy from external image to swapchaing. Main";
-			_copy_image(external_image, context->get_swapchain_image(), external_image_extent);
+			_copy_image(ext_texture.image, context->get_swapchain_image(), extent);
 		}
 		else {
 			log = "copy from swapchaing to external image. Sandbox";
-			_copy_image(context->get_swapchain_image(), external_image, external_image_extent);
+			_copy_image(context->get_swapchain_image(), ext_texture.image, extent);
 		}
 	}
-	if (a > 1000) {
-		a = 0;
+	if ((counter > 1000) && !log.is_empty()) {
 		print_line(log);
+		counter = 0;
 	}
-	a++;
+	counter++;
 
 	frame = (frame + 1) % frame_count;
 

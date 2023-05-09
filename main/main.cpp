@@ -3349,7 +3349,7 @@ bool Main::start() {
 	external_image_fd = syscall(SYS_pidfd_getfd, pid_fd, external_image_fd, 0);
 	print_line("Main process pid " + itos(main_pid) + ". PidFd " + itos(pid_fd) + ". Fd " + itos(external_image_fd));
 
-	Error err = rendering_server->get_rendering_device()->import_external_image(external_image_fd);
+	Error err = rendering_server->get_rendering_device()->import_external_texture(external_image_fd);
 	if (err != OK) {
 		ERR_PRINT("Unable to import external image " + itos(external_image_fd));
 		return false;
