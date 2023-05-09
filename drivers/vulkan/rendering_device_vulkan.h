@@ -165,21 +165,19 @@ class RenderingDeviceVulkan : public RenderingDevice {
 	Vector<uint8_t> _texture_get_data_from_image(Texture *tex, VkImage p_image, VmaAllocation p_allocation, uint32_t p_layer, bool p_2d = false);
 	Error _texture_update(RID p_texture, uint32_t p_layer, const Vector<uint8_t> &p_data, BitField<BarrierMask> p_post_barrier, bool p_use_setup_queue);
 
-	// External image
-	Texture external_texure;
+	// External texture
+	Texture ext_texture;
 
 	VkExportMemoryAllocateInfo export_alloc_info;
-	VmaPool external_image_pool;
+	VkImportMemoryFdInfoKHR import_memory_info;
+	VmaPool ext_image_pool = VK_NULL_HANDLE;
 
-	VkImage external_image;
-	VkFormat external_image_format;
-	VkExtent3D external_image_extent;
-	int external_image_fd = -1;
+	int ext_image_fd = -1;
 	bool tg_main_process = true;
 
 	VkResult _memory_type_from_properties(VkImage image, VkMemoryPropertyFlags properties, VkMemoryRequirements *p_mem_requirements, uint32_t *p_memory_type_bits);
-	Error _create_external_image(VkFormat p_format, VkExtent3D p_extent, VkImageUsageFlags usage, int *fd);
-	Error _import_external_image(VkFormat p_format, VkExtent3D p_extent, VkImageUsageFlags usage, int fd);
+	Error _create_external_texture(VkFormat p_format, VkExtent3D p_extent, VkImageUsageFlags usage, int *fd);
+	Error _import_external_texture(VkFormat p_format, VkExtent3D p_extent, VkImageUsageFlags usage, int fd);
 	Error _copy_image(VkImage p_from_image, VkImage p_to_image, VkExtent3D extent);
 
 	/*****************/
@@ -1089,7 +1087,7 @@ class RenderingDeviceVulkan : public RenderingDevice {
 
 public:
 	virtual int create_external_texture(int p_width, int p_height);
-	virtual Error import_external_image(int fd);
+	virtual Error import_external_texture(int fd);
 
 	virtual RID texture_create(const TextureFormat &p_format, const TextureView &p_view, const Vector<Vector<uint8_t>> &p_data = Vector<Vector<uint8_t>>());
 	virtual RID texture_create_shared(const TextureView &p_view, RID p_with_texture);
