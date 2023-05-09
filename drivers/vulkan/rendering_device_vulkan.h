@@ -166,6 +166,11 @@ class RenderingDeviceVulkan : public RenderingDevice {
 	Error _texture_update(RID p_texture, uint32_t p_layer, const Vector<uint8_t> &p_data, BitField<BarrierMask> p_post_barrier, bool p_use_setup_queue);
 
 	// External image
+	Texture external_texure;
+
+	VkExportMemoryAllocateInfo export_alloc_info;
+	VmaPool external_image_pool;
+
 	VkImage external_image;
 	VkFormat external_image_format;
 	VkExtent3D external_image_extent;
