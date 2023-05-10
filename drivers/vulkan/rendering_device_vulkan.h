@@ -167,18 +167,13 @@ class RenderingDeviceVulkan : public RenderingDevice {
 
 	// External texture
 	Texture ext_texture;
+	int ext_image_fd = -1;
 
 	VkExportMemoryAllocateInfo export_alloc_info;
 	VkImportMemoryFdInfoKHR import_memory_info;
 	VmaPool ext_image_pool = VK_NULL_HANDLE;
 
-	int ext_image_fd = -1;
-	bool tg_main_process = true;
-
-	VkResult _memory_type_from_properties(VkImage image, VkMemoryPropertyFlags properties, VkMemoryRequirements *p_mem_requirements, uint32_t *p_memory_type_bits);
-	Error _create_external_texture(VkFormat p_format, VkExtent3D p_extent, VkImageUsageFlags usage, int *fd);
 	Error _import_external_texture(VkFormat p_format, VkExtent3D p_extent, VkImageUsageFlags usage, int fd);
-	Error _copy_image(VkImage p_from_image, VkImage p_to_image, VkExtent3D extent);
 
 	/*****************/
 	/**** SAMPLER ****/
