@@ -1086,7 +1086,8 @@ class RenderingDeviceVulkan : public RenderingDevice {
 	VkSampleCountFlagBits _ensure_supported_sample_count(TextureSamples p_requested_sample_count) const;
 
 public:
-	virtual int create_external_texture(int p_width, int p_height);
+	virtual RID create_external_texture(const TextureFormat &p_format, const TextureView &p_view, const Vector<Vector<uint8_t>> &p_data = Vector<Vector<uint8_t>>());
+	virtual int get_external_texture_fd(RID p_texture) { return ext_image_fd; };
 	virtual Error import_external_texture(int fd);
 
 	virtual RID texture_create(const TextureFormat &p_format, const TextureView &p_view, const Vector<Vector<uint8_t>> &p_data = Vector<Vector<uint8_t>>());

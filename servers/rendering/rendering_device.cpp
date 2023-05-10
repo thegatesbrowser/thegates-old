@@ -90,6 +90,18 @@ RID RenderingDevice::shader_create_from_spirv(const Vector<ShaderStageSPIRVData>
 	return shader_create_from_bytecode(bytecode);
 }
 
+RID RenderingDevice::_create_external_texture(const Ref<RDTextureFormat> &p_format, const Ref<RDTextureView> &p_view, const TypedArray<PackedByteArray> &p_data) {
+	ERR_FAIL_COND_V(p_format.is_null(), RID());
+	ERR_FAIL_COND_V(p_view.is_null(), RID());
+	Vector<Vector<uint8_t>> data;
+	for (int i = 0; i < p_data.size(); i++) {
+		Vector<uint8_t> byte_slice = p_data[i];
+		ERR_FAIL_COND_V(byte_slice.is_empty(), RID());
+		data.push_back(byte_slice);
+	}
+	return create_external_texture(p_format->base, p_view->base, data);
+}
+
 RID RenderingDevice::_texture_create(const Ref<RDTextureFormat> &p_format, const Ref<RDTextureView> &p_view, const TypedArray<PackedByteArray> &p_data) {
 	ERR_FAIL_COND_V(p_format.is_null(), RID());
 	ERR_FAIL_COND_V(p_view.is_null(), RID());
@@ -704,7 +716,8 @@ Error RenderingDevice::_reflect_spirv(const Vector<ShaderStageSPIRVData> &p_spir
 }
 
 void RenderingDevice::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("create_external_texture", "width", "height"), &RenderingDevice::create_external_texture);
+	ClassDB::bind_method(D_METHOD("create_external_texture", "format", "view", "data"), &RenderingDevice::_create_external_texture, DEFVAL(Array()));
+	ClassDB::bind_method(D_METHOD("get_external_texture_fd", "texture"), &RenderingDevice::get_external_texture_fd);
 
 	ClassDB::bind_method(D_METHOD("texture_create", "format", "view", "data"), &RenderingDevice::_texture_create, DEFVAL(Array()));
 	ClassDB::bind_method(D_METHOD("texture_create_shared", "view", "with_texture"), &RenderingDevice::_texture_create_shared);
