@@ -2082,7 +2082,7 @@ Error RenderingDeviceVulkan::_import_external_texture(VkFormat p_format, VkExten
 
 	// Allocate memory
 	VmaAllocationCreateInfo allocInfo;
-	allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
+	allocInfo.flags = 0;
 	allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 	allocInfo.requiredFlags = 0;
 	allocInfo.preferredFlags = 0;
