@@ -2054,89 +2054,414 @@ RID RenderingDeviceVulkan::create_external_texture(const TextureFormat &p_format
 	return id;
 }
 
-Error RenderingDeviceVulkan::_import_external_texture(VkFormat p_format, VkExtent3D p_extent, VkImageUsageFlags usage, int fd) {
-	// Crate external texture
+
+RID RenderingDeviceVulkan::_import_external_texture(const TextureFormat &p_format, const TextureView &p_view, const int fd) {
+	_THREAD_SAFE_METHOD_
+
+	Vector<Vector<uint8_t>> p_data = Vector<Vector<uint8_t>>();
+
 	VkExternalMemoryHandleTypeFlagBits ext_handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT; // TODO: handle platform
 	VkExternalMemoryImageCreateInfo ext_image_info = {
 		/*sType*/ VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
 		/*pNext*/ nullptr,
 		/*handleTypes*/ ext_handle_type
 	};
-	VkImageCreateInfo image_create_info = {
-		/*sType*/ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-		/*pNext*/ &ext_image_info,
-		/*flags*/ 0,
-		/*imageType*/ VK_IMAGE_TYPE_2D,
-		/*format*/ p_format,
-		/*extent*/ p_extent,
-		/*mipLevels*/ 1,
-		/*arrayLayers*/ 1,
-		/*samples*/ VK_SAMPLE_COUNT_1_BIT,
-		/*tiling*/ VK_IMAGE_TILING_OPTIMAL,
-		/*usage*/ VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | usage,
-		/*sharingMode*/ VK_SHARING_MODE_EXCLUSIVE,
-		/*queueFamilyIndexCount*/ 0,
-		/*pQueueFamilyIndices*/ nullptr,
-		/*initialLayout*/ VK_IMAGE_LAYOUT_UNDEFINED
-	};
+	VkImageCreateInfo image_create_info;
+	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	image_create_info.pNext = &ext_image_info;
+	image_create_info.flags = 0;
 
-	// Allocate memory
+	VkImageFormatListCreateInfoKHR format_list_create_info; // Keep out of the if, needed for creation.
+	Vector<VkFormat> allowed_formats; // Keep out of the if, needed for creation.
+	if (p_format.shareable_formats.size()) {
+		image_create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
+
+		if (context->is_device_extension_enabled(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME)) {
+			for (int i = 0; i < p_format.shareable_formats.size(); i++) {
+				allowed_formats.push_back(vulkan_formats[p_format.shareable_formats[i]]);
+			}
+
+			format_list_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR;
+			format_list_create_info.pNext = nullptr;
+			format_list_create_info.viewFormatCount = allowed_formats.size();
+			format_list_create_info.pViewFormats = allowed_formats.ptr();
+			image_create_info.pNext = &format_list_create_info;
+
+			ERR_FAIL_COND_V_MSG(p_format.shareable_formats.find(p_format.format) == -1, RID(),
+					"If supplied a list of shareable formats, the current format must be present in the list");
+			ERR_FAIL_COND_V_MSG(p_view.format_override != DATA_FORMAT_MAX && p_format.shareable_formats.find(p_view.format_override) == -1, RID(),
+					"If supplied a list of shareable formats, the current view format override must be present in the list");
+		}
+	}
+
+	if (p_format.texture_type == TEXTURE_TYPE_CUBE || p_format.texture_type == TEXTURE_TYPE_CUBE_ARRAY) {
+		image_create_info.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+	}
+	/*if (p_format.type == TEXTURE_TYPE_2D || p_format.type == TEXTURE_TYPE_2D_ARRAY) {
+		image_create_info.flags |= VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT;
+	}*/
+
+	ERR_FAIL_INDEX_V(p_format.texture_type, TEXTURE_TYPE_MAX, RID());
+
+	image_create_info.imageType = vulkan_image_type[p_format.texture_type];
+
+	ERR_FAIL_COND_V_MSG(p_format.width < 1, RID(), "Width must be equal or greater than 1 for all textures");
+
+	image_create_info.format = vulkan_formats[p_format.format];
+
+	image_create_info.extent.width = p_format.width;
+	if (image_create_info.imageType == VK_IMAGE_TYPE_3D || image_create_info.imageType == VK_IMAGE_TYPE_2D) {
+		ERR_FAIL_COND_V_MSG(p_format.height < 1, RID(), "Height must be equal or greater than 1 for 2D and 3D textures");
+		image_create_info.extent.height = p_format.height;
+	} else {
+		image_create_info.extent.height = 1;
+	}
+
+	if (image_create_info.imageType == VK_IMAGE_TYPE_3D) {
+		ERR_FAIL_COND_V_MSG(p_format.depth < 1, RID(), "Depth must be equal or greater than 1 for 3D textures");
+		image_create_info.extent.depth = p_format.depth;
+	} else {
+		image_create_info.extent.depth = 1;
+	}
+
+	ERR_FAIL_COND_V(p_format.mipmaps < 1, RID());
+
+	image_create_info.mipLevels = p_format.mipmaps;
+
+	if (p_format.texture_type == TEXTURE_TYPE_1D_ARRAY || p_format.texture_type == TEXTURE_TYPE_2D_ARRAY || p_format.texture_type == TEXTURE_TYPE_CUBE_ARRAY || p_format.texture_type == TEXTURE_TYPE_CUBE) {
+		ERR_FAIL_COND_V_MSG(p_format.array_layers < 1, RID(),
+				"Amount of layers must be equal or greater than 1 for arrays and cubemaps.");
+		ERR_FAIL_COND_V_MSG((p_format.texture_type == TEXTURE_TYPE_CUBE_ARRAY || p_format.texture_type == TEXTURE_TYPE_CUBE) && (p_format.array_layers % 6) != 0, RID(),
+				"Cubemap and cubemap array textures must provide a layer number that is multiple of 6");
+		image_create_info.arrayLayers = p_format.array_layers;
+	} else {
+		image_create_info.arrayLayers = 1;
+	}
+
+	ERR_FAIL_INDEX_V(p_format.samples, TEXTURE_SAMPLES_MAX, RID());
+
+	image_create_info.samples = _ensure_supported_sample_count(p_format.samples);
+	image_create_info.tiling = (p_format.usage_bits & TEXTURE_USAGE_CPU_READ_BIT) ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL;
+
+	// Usage.
+	image_create_info.usage = 0;
+
+	if (p_format.usage_bits & TEXTURE_USAGE_SAMPLING_BIT) {
+		image_create_info.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+	}
+
+	if (p_format.usage_bits & TEXTURE_USAGE_STORAGE_BIT) {
+		image_create_info.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
+	}
+
+	if (p_format.usage_bits & TEXTURE_USAGE_COLOR_ATTACHMENT_BIT) {
+		image_create_info.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	}
+
+	if (p_format.usage_bits & TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+		image_create_info.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+	}
+
+	if (p_format.usage_bits & TEXTURE_USAGE_INPUT_ATTACHMENT_BIT) {
+		image_create_info.usage |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+	}
+
+	if (p_format.usage_bits & TEXTURE_USAGE_VRS_ATTACHMENT_BIT) {
+		image_create_info.usage |= VK_IMAGE_USAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR;
+	}
+
+	if (p_format.usage_bits & TEXTURE_USAGE_CAN_UPDATE_BIT) {
+		image_create_info.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	}
+	if (p_format.usage_bits & TEXTURE_USAGE_CAN_COPY_FROM_BIT) {
+		image_create_info.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+	}
+
+	if (p_format.usage_bits & TEXTURE_USAGE_CAN_COPY_TO_BIT) {
+		image_create_info.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	}
+
+	image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	image_create_info.queueFamilyIndexCount = 0;
+	image_create_info.pQueueFamilyIndices = nullptr;
+	image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+	uint32_t required_mipmaps = get_image_required_mipmaps(image_create_info.extent.width, image_create_info.extent.height, image_create_info.extent.depth);
+
+	ERR_FAIL_COND_V_MSG(required_mipmaps < image_create_info.mipLevels, RID(),
+			"Too many mipmaps requested for texture format and dimensions (" + itos(image_create_info.mipLevels) + "), maximum allowed: (" + itos(required_mipmaps) + ").");
+
+	if (p_data.size()) {
+		ERR_FAIL_COND_V_MSG(!(p_format.usage_bits & TEXTURE_USAGE_CAN_UPDATE_BIT), RID(),
+				"Texture needs the TEXTURE_USAGE_CAN_UPDATE_BIT usage flag in order to be updated at initialization or later");
+
+		int expected_images = image_create_info.arrayLayers;
+		ERR_FAIL_COND_V_MSG(p_data.size() != expected_images, RID(),
+				"Default supplied data for image format is of invalid length (" + itos(p_data.size()) + "), should be (" + itos(expected_images) + ").");
+
+		for (uint32_t i = 0; i < image_create_info.arrayLayers; i++) {
+			uint32_t required_size = get_image_format_required_size(p_format.format, image_create_info.extent.width, image_create_info.extent.height, image_create_info.extent.depth, image_create_info.mipLevels);
+			ERR_FAIL_COND_V_MSG((uint32_t)p_data[i].size() != required_size, RID(),
+					"Data for slice index " + itos(i) + " (mapped to layer " + itos(i) + ") differs in size (supplied: " + itos(p_data[i].size()) + ") than what is required by the format (" + itos(required_size) + ").");
+		}
+	}
+
+	{
+		// Validate that this image is supported for the intended use.
+		VkFormatProperties properties;
+		vkGetPhysicalDeviceFormatProperties(context->get_physical_device(), image_create_info.format, &properties);
+		VkFormatFeatureFlags flags;
+
+		String format_text = "'" + String(named_formats[p_format.format]) + "'";
+
+		if (p_format.usage_bits & TEXTURE_USAGE_CPU_READ_BIT) {
+			flags = properties.linearTilingFeatures;
+			format_text += " (with CPU read bit)";
+		} else {
+			flags = properties.optimalTilingFeatures;
+		}
+
+		if (p_format.usage_bits & TEXTURE_USAGE_SAMPLING_BIT && !(flags & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)) {
+			ERR_FAIL_V_MSG(RID(), "Format " + format_text + " does not support usage as sampling texture.");
+		}
+
+		if (p_format.usage_bits & TEXTURE_USAGE_COLOR_ATTACHMENT_BIT && !(flags & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT)) {
+			ERR_FAIL_V_MSG(RID(), "Format " + format_text + " does not support usage as color attachment.");
+		}
+
+		if (p_format.usage_bits & TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT && !(flags & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)) {
+			printf("vkformat: %x\n", image_create_info.format);
+			ERR_FAIL_V_MSG(RID(), "Format " + format_text + " does not support usage as depth-stencil attachment.");
+		}
+
+		if (p_format.usage_bits & TEXTURE_USAGE_STORAGE_BIT && !(flags & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT)) {
+			ERR_FAIL_V_MSG(RID(), "Format " + format_text + " does not support usage as storage image.");
+		}
+
+		if (p_format.usage_bits & TEXTURE_USAGE_STORAGE_ATOMIC_BIT && !(flags & VK_FORMAT_FEATURE_STORAGE_IMAGE_ATOMIC_BIT)) {
+			ERR_FAIL_V_MSG(RID(), "Format " + format_text + " does not support usage as atomic storage image.");
+		}
+
+		// Validation via VK_FORMAT_FEATURE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR fails if VRS attachment is not supported.
+		if (p_format.usage_bits & TEXTURE_USAGE_VRS_ATTACHMENT_BIT && p_format.format != DATA_FORMAT_R8_UINT) {
+			ERR_FAIL_V_MSG(RID(), "Format " + format_text + " does not support usage as VRS attachment.");
+		}
+	}
+
+	// Some view validation.
+
+	if (p_view.format_override != DATA_FORMAT_MAX) {
+		ERR_FAIL_INDEX_V(p_view.format_override, DATA_FORMAT_MAX, RID());
+	}
+	ERR_FAIL_INDEX_V(p_view.swizzle_r, TEXTURE_SWIZZLE_MAX, RID());
+	ERR_FAIL_INDEX_V(p_view.swizzle_g, TEXTURE_SWIZZLE_MAX, RID());
+	ERR_FAIL_INDEX_V(p_view.swizzle_b, TEXTURE_SWIZZLE_MAX, RID());
+	ERR_FAIL_INDEX_V(p_view.swizzle_a, TEXTURE_SWIZZLE_MAX, RID());
+
+	// Allocate memory.
+
 	VmaAllocationCreateInfo allocInfo;
-	allocInfo.flags = 0;
+	allocInfo.flags = (p_format.usage_bits & TEXTURE_USAGE_CPU_READ_BIT) ? VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT : 0;
+	allocInfo.pool = nullptr;
 	allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 	allocInfo.requiredFlags = 0;
 	allocInfo.preferredFlags = 0;
 	allocInfo.memoryTypeBits = 0;
 	allocInfo.pUserData = nullptr;
 
-	uint32_t mem_type_index = 0;
-	vmaFindMemoryTypeIndexForImageInfo(allocator, &image_create_info, &allocInfo, &mem_type_index);
-
 	// Create pool with import memory
-	// TODO: handle platform
-	import_memory_info = {
-		/*sType*/ VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
-		/*pNext*/ nullptr,
-		/*handleType*/ ext_handle_type,
-		/*fd*/ fd
-	};
-	VmaPoolCreateInfo pool_create_info;
-	pool_create_info.memoryTypeIndex = mem_type_index;
-	pool_create_info.flags = 0;
-	pool_create_info.blockSize = 0;
-	pool_create_info.minBlockCount = 0;
-	pool_create_info.maxBlockCount = SIZE_MAX;
-	pool_create_info.minAllocationAlignment = 0;
-	pool_create_info.pMemoryAllocateNext = &import_memory_info;
-	VkResult res = vmaCreatePool(allocator, &pool_create_info, &ext_image_pool);
-	ERR_FAIL_COND_V_MSG(res, ERR_CANT_CREATE, "vmaCreatePool failed with error " + itos(res) + ".");
 
-	// Allocate using pool
+	if (ext_image_pool == VK_NULL_HANDLE) {
+		uint32_t mem_type_index = 0;
+		vmaFindMemoryTypeIndexForImageInfo(allocator, &image_create_info, &allocInfo, &mem_type_index);
+		
+		// TODO: handle platform
+		import_memory_info = {
+			/*sType*/ VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
+			/*pNext*/ nullptr,
+			/*handleType*/ ext_handle_type,
+			/*fd*/ fd
+		};
+		VmaPoolCreateInfo pool_create_info;
+		pool_create_info.memoryTypeIndex = mem_type_index;
+		pool_create_info.flags = 0;
+		pool_create_info.blockSize = 0;
+		pool_create_info.minBlockCount = 0;
+		pool_create_info.maxBlockCount = SIZE_MAX;
+		pool_create_info.minAllocationAlignment = 0;
+		pool_create_info.pMemoryAllocateNext = &import_memory_info;
+		VkResult res = vmaCreatePool(allocator, &pool_create_info, &ext_image_pool);
+		ERR_FAIL_COND_V_MSG(res, RID(), "vmaCreatePool failed with error " + itos(res) + ".");
+	}
 	allocInfo.pool = ext_image_pool;
 
-	res = vmaCreateImage(allocator, &image_create_info, &allocInfo, &ext_texture.image, &ext_texture.allocation, &ext_texture.allocation_info);
-	ERR_FAIL_COND_V_MSG(res, ERR_CANT_CREATE, "vmaCreateImage failed with error " + itos(res) + ".");
+	Texture texture;
 
-	print_line("External texture imported: " + itos(p_extent.width) + "x" + itos(p_extent.height));
-	print_line("File Descriptor imported: " + itos(fd));
+	VkResult err = vmaCreateImage(allocator, &image_create_info, &allocInfo, &texture.image, &texture.allocation, &texture.allocation_info);
+	ERR_FAIL_COND_V_MSG(err, RID(), "vmaCreateImage failed with error " + itos(err) + ".");
+	image_memory += texture.allocation_info.size;
+	texture.type = p_format.texture_type;
+	texture.format = p_format.format;
+	texture.width = image_create_info.extent.width;
+	texture.height = image_create_info.extent.height;
+	texture.depth = image_create_info.extent.depth;
+	texture.layers = image_create_info.arrayLayers;
+	texture.mipmaps = image_create_info.mipLevels;
+	texture.base_mipmap = 0;
+	texture.base_layer = 0;
+	texture.is_resolve_buffer = p_format.is_resolve_buffer;
+	texture.usage_flags = p_format.usage_bits;
+	texture.samples = p_format.samples;
+	texture.allowed_shared_formats = p_format.shareable_formats;
 
-	return OK;
+	// Set base layout based on usage priority.
+
+	if (p_format.usage_bits & TEXTURE_USAGE_SAMPLING_BIT) {
+		// First priority, readable.
+		texture.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+	} else if (p_format.usage_bits & TEXTURE_USAGE_STORAGE_BIT) {
+		// Second priority, storage.
+
+		texture.layout = VK_IMAGE_LAYOUT_GENERAL;
+
+	} else if (p_format.usage_bits & TEXTURE_USAGE_COLOR_ATTACHMENT_BIT) {
+		// Third priority, color or depth.
+
+		texture.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	} else if (p_format.usage_bits & TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+		texture.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	} else {
+		texture.layout = VK_IMAGE_LAYOUT_GENERAL;
+	}
+
+	if (p_format.usage_bits & TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+		texture.read_aspect_mask = VK_IMAGE_ASPECT_DEPTH_BIT;
+		texture.barrier_aspect_mask = VK_IMAGE_ASPECT_DEPTH_BIT;
+
+		if (format_has_stencil(p_format.format)) {
+			texture.barrier_aspect_mask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+		}
+	} else {
+		texture.read_aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT;
+		texture.barrier_aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT;
+	}
+
+	texture.bound = false;
+
+	// Create view.
+
+	VkImageViewCreateInfo image_view_create_info;
+	image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	image_view_create_info.pNext = nullptr;
+	image_view_create_info.flags = 0;
+	image_view_create_info.image = texture.image;
+
+	static const VkImageViewType view_types[TEXTURE_TYPE_MAX] = {
+		VK_IMAGE_VIEW_TYPE_1D,
+		VK_IMAGE_VIEW_TYPE_2D,
+		VK_IMAGE_VIEW_TYPE_3D,
+		VK_IMAGE_VIEW_TYPE_CUBE,
+		VK_IMAGE_VIEW_TYPE_1D_ARRAY,
+		VK_IMAGE_VIEW_TYPE_2D_ARRAY,
+		VK_IMAGE_VIEW_TYPE_CUBE_ARRAY,
+	};
+
+	image_view_create_info.viewType = view_types[p_format.texture_type];
+	if (p_view.format_override == DATA_FORMAT_MAX) {
+		image_view_create_info.format = image_create_info.format;
+	} else {
+		image_view_create_info.format = vulkan_formats[p_view.format_override];
+	}
+
+	static const VkComponentSwizzle component_swizzles[TEXTURE_SWIZZLE_MAX] = {
+		VK_COMPONENT_SWIZZLE_IDENTITY,
+		VK_COMPONENT_SWIZZLE_ZERO,
+		VK_COMPONENT_SWIZZLE_ONE,
+		VK_COMPONENT_SWIZZLE_R,
+		VK_COMPONENT_SWIZZLE_G,
+		VK_COMPONENT_SWIZZLE_B,
+		VK_COMPONENT_SWIZZLE_A
+	};
+
+	image_view_create_info.components.r = component_swizzles[p_view.swizzle_r];
+	image_view_create_info.components.g = component_swizzles[p_view.swizzle_g];
+	image_view_create_info.components.b = component_swizzles[p_view.swizzle_b];
+	image_view_create_info.components.a = component_swizzles[p_view.swizzle_a];
+
+	image_view_create_info.subresourceRange.baseMipLevel = 0;
+	image_view_create_info.subresourceRange.levelCount = image_create_info.mipLevels;
+	image_view_create_info.subresourceRange.baseArrayLayer = 0;
+	image_view_create_info.subresourceRange.layerCount = image_create_info.arrayLayers;
+	if (p_format.usage_bits & TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+		image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+	} else {
+		image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	}
+
+	err = vkCreateImageView(device, &image_view_create_info, nullptr, &texture.view);
+
+	if (err) {
+		vmaDestroyImage(allocator, texture.image, texture.allocation);
+		ERR_FAIL_V_MSG(RID(), "vkCreateImageView failed with error " + itos(err) + ".");
+	}
+
+	// Barrier to set layout.
+	{
+		VkImageMemoryBarrier image_memory_barrier;
+		image_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		image_memory_barrier.pNext = nullptr;
+		image_memory_barrier.srcAccessMask = 0;
+		image_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		image_memory_barrier.newLayout = texture.layout;
+		image_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		image_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		image_memory_barrier.image = texture.image;
+		image_memory_barrier.subresourceRange.aspectMask = texture.barrier_aspect_mask;
+		image_memory_barrier.subresourceRange.baseMipLevel = 0;
+		image_memory_barrier.subresourceRange.levelCount = image_create_info.mipLevels;
+		image_memory_barrier.subresourceRange.baseArrayLayer = 0;
+		image_memory_barrier.subresourceRange.layerCount = image_create_info.arrayLayers;
+
+		vkCmdPipelineBarrier(frames[frame].setup_command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &image_memory_barrier);
+	}
+
+	RID id = texture_owner.make_rid(texture);
+#ifdef DEV_ENABLED
+	set_resource_name(id, "RID:" + itos(id.get_id()));
+#endif
+
+	if (p_data.size()) {
+		for (uint32_t i = 0; i < image_create_info.arrayLayers; i++) {
+			_texture_update(id, i, p_data[i], RD::BARRIER_MASK_ALL_BARRIERS, true);
+		}
+	}
+	return id;
 }
 
-Error RenderingDeviceVulkan::import_external_texture(int fd) {
+Error RenderingDeviceVulkan::import_external_texture(const int fd) {
 	if (fd == -1) {
 		return ERR_INVALID_PARAMETER;
 	}
 
-	ext_image_fd = fd;
-	VkFormat format = context->get_screen_format();
-	VkExtent3D extent = {
-		static_cast<uint32_t>(context->window_get_width()),
-		static_cast<uint32_t>(context->window_get_height()),
-		1
-	};
+	TextureFormat t_format = {};
+	t_format.format = RenderingDevice::DATA_FORMAT_R8G8B8A8_UNORM;
+	t_format.usage_bits = RenderingDevice::TEXTURE_USAGE_CAN_COPY_TO_BIT;
+	t_format.width = static_cast<uint32_t>(context->window_get_width());
+	t_format.height = static_cast<uint32_t>(context->window_get_height());
+	t_format.depth = 1;
+	TextureView t_view = {};
 
-	return _import_external_texture(format, extent, VK_IMAGE_USAGE_TRANSFER_DST_BIT, ext_image_fd);
+	ext_image_fd = fd;
+	ext_texture_rid = _import_external_texture(t_format, t_view, ext_image_fd);
+	if (!ext_texture_rid.is_valid()) {
+		return ERR_CANT_CREATE;
+	}
+
+	return OK;
 }
 
 RID RenderingDeviceVulkan::texture_create(const TextureFormat &p_format, const TextureView &p_view, const Vector<Vector<uint8_t>> &p_data) {

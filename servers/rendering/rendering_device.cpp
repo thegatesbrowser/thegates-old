@@ -718,6 +718,7 @@ Error RenderingDevice::_reflect_spirv(const Vector<ShaderStageSPIRVData> &p_spir
 void RenderingDevice::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("create_external_texture", "format", "view", "data"), &RenderingDevice::_create_external_texture, DEFVAL(Array()));
 	ClassDB::bind_method(D_METHOD("get_external_texture_fd", "texture"), &RenderingDevice::get_external_texture_fd);
+	ClassDB::bind_method(D_METHOD("get_external_texture_rid"), &RenderingDevice::get_external_texture_rid);
 
 	ClassDB::bind_method(D_METHOD("texture_create", "format", "view", "data"), &RenderingDevice::_texture_create, DEFVAL(Array()));
 	ClassDB::bind_method(D_METHOD("texture_create_shared", "view", "with_texture"), &RenderingDevice::_texture_create_shared);

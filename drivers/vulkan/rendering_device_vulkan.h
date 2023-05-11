@@ -166,14 +166,14 @@ class RenderingDeviceVulkan : public RenderingDevice {
 	Error _texture_update(RID p_texture, uint32_t p_layer, const Vector<uint8_t> &p_data, BitField<BarrierMask> p_post_barrier, bool p_use_setup_queue);
 
 	// External texture
-	Texture ext_texture;
+	RID ext_texture_rid;
 	int ext_image_fd = -1;
 
 	VkExportMemoryAllocateInfo export_alloc_info;
 	VkImportMemoryFdInfoKHR import_memory_info;
 	VmaPool ext_image_pool = VK_NULL_HANDLE;
 
-	Error _import_external_texture(VkFormat p_format, VkExtent3D p_extent, VkImageUsageFlags usage, int fd);
+	RID _import_external_texture(const TextureFormat &p_format, const TextureView &p_view, const int fd);
 
 	/*****************/
 	/**** SAMPLER ****/
@@ -1084,6 +1084,7 @@ public:
 	virtual RID create_external_texture(const TextureFormat &p_format, const TextureView &p_view, const Vector<Vector<uint8_t>> &p_data = Vector<Vector<uint8_t>>());
 	virtual int get_external_texture_fd(RID p_texture) { return ext_image_fd; };
 	virtual Error import_external_texture(int fd);
+	virtual RID get_external_texture_rid() { return ext_texture_rid; };
 
 	virtual RID texture_create(const TextureFormat &p_format, const TextureView &p_view, const Vector<Vector<uint8_t>> &p_data = Vector<Vector<uint8_t>>());
 	virtual RID texture_create_shared(const TextureView &p_view, RID p_with_texture);
