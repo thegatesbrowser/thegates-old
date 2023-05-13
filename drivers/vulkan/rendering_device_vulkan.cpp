@@ -2046,6 +2046,9 @@ RID RenderingDeviceVulkan::create_external_texture(const TextureFormat &p_format
 	set_resource_name(id, "RID:" + itos(id.get_id()));
 #endif
 
+	ext_texture_rid = id;
+	ext_texture_format = p_format;
+
 	if (p_data.size()) {
 		for (uint32_t i = 0; i < image_create_info.arrayLayers; i++) {
 			_texture_update(id, i, p_data[i], RD::BARRIER_MASK_ALL_BARRIERS, true);
@@ -2456,6 +2459,7 @@ Error RenderingDeviceVulkan::import_external_texture(const int fd) {
 	TextureView t_view = {};
 
 	ext_image_fd = fd;
+	ext_texture_format = t_format;
 	ext_texture_rid = _import_external_texture(t_format, t_view, ext_image_fd);
 	if (!ext_texture_rid.is_valid()) {
 		return ERR_CANT_CREATE;

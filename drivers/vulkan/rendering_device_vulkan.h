@@ -168,6 +168,7 @@ class RenderingDeviceVulkan : public RenderingDevice {
 	// External texture
 	RID ext_texture_rid;
 	int ext_image_fd = -1;
+	TextureFormat ext_texture_format;
 
 	VkExportMemoryAllocateInfo export_alloc_info;
 	VkImportMemoryFdInfoKHR import_memory_info;
@@ -1085,6 +1086,7 @@ public:
 	virtual int get_external_texture_fd(RID p_texture) { return ext_image_fd; };
 	virtual Error import_external_texture(int fd);
 	virtual RID get_external_texture_rid() { return ext_texture_rid; };
+	virtual TextureFormat get_external_texture_format() { return ext_texture_format; };
 
 	virtual RID texture_create(const TextureFormat &p_format, const TextureView &p_view, const Vector<Vector<uint8_t>> &p_data = Vector<Vector<uint8_t>>());
 	virtual RID texture_create_shared(const TextureView &p_view, RID p_with_texture);

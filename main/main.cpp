@@ -3562,6 +3562,26 @@ bool Main::iteration() {
 		exit = true;
 	}
 
+#ifdef THE_GATES_SANDBOX
+	RID main_vp_rid = RS::get_singleton()->viewport_find_from_screen_attachment(DisplayServer::MAIN_WINDOW_ID);
+	RID main_vp_texture = RS::get_singleton()->viewport_get_texture(main_vp_rid);
+	
+	RID viewport_texture_rid = RS::get_singleton()->texture_get_rd_texture_rid(main_vp_texture);
+	RID ext_texture_rid = RD::get_singleton()->get_external_texture_rid();
+
+	if (viewport_texture_rid.is_valid() && ext_texture_rid.is_valid()) {
+		RD::TextureFormat t_format = RD::get_singleton()->get_external_texture_format();
+		Vector3 size = {
+			static_cast<float>(t_format.width),
+			static_cast<float>(t_format.height),
+			static_cast<float>(t_format.depth)
+		};
+		Vector3 zero = { 0, 0, 0 };
+
+		RenderingDevice::get_singleton()->texture_copy(viewport_texture_rid, ext_texture_rid, zero, zero, size, 0, 0, 0, 0);
+	}
+#endif
+
 	if (fixed_fps != -1) {
 		return exit;
 	}
