@@ -118,6 +118,7 @@
 
 #ifdef THE_GATES_SANDBOX
 #include <sys/syscall.h>
+#include "modules/zmq/input_sync.h"
 #endif
 
 /* Static members */
@@ -3337,8 +3338,8 @@ bool Main::start() {
 	OS::get_singleton()->benchmark_end_measure("startup_begin");
 	OS::get_singleton()->benchmark_dump();
 
-	// External texture
 #ifdef THE_GATES_SANDBOX
+	// External texture
 	int pid_fd = syscall(SYS_pidfd_open, main_pid, 0);
 	external_image_fd = syscall(SYS_pidfd_getfd, pid_fd, external_image_fd, 0);
 	print_line("Main process pid " + itos(main_pid) + ". PidFd " + itos(pid_fd) + ". Fd " + itos(external_image_fd));
@@ -3348,6 +3349,10 @@ bool Main::start() {
 		ERR_PRINT("Unable to import external image " + itos(external_image_fd));
 		return false;
 	}
+
+	// ZeroMQ
+	InputSync *input_sync = memnew(InputSync);
+	input_sync->connect();
 #endif
 
 	return true;
@@ -3559,7 +3564,7 @@ bool Main::iteration() {
 #ifdef THE_GATES_SANDBOX
 	RID main_vp_rid = RS::get_singleton()->viewport_find_from_screen_attachment(DisplayServer::MAIN_WINDOW_ID);
 	RID main_vp_texture = RS::get_singleton()->viewport_get_texture(main_vp_rid);
-	
+
 	RID viewport_texture_rid = RS::get_singleton()->texture_get_rd_texture_rid(main_vp_texture);
 	RID ext_texture_rid = RD::get_singleton()->get_external_texture_rid();
 
