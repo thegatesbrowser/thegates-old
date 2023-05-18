@@ -1,0 +1,27 @@
+#ifndef INPUT_SYNC_H
+#define INPUT_SYNC_H
+
+#include "core/object/ref_counted.h"
+#include "thirdparty/zmqpp/zmqpp.hpp"
+#include "thirdparty/zmqpp/context.hpp"
+
+inline zmqpp::context ctx;
+static const String IPC_ADDR("ipc://tg-main");
+
+class InputSync : public RefCounted {
+    GDCLASS(InputSync, RefCounted);
+
+    zmqpp::socket sock;
+
+protected:
+    static void _bind_methods();
+
+public:
+    void bind(const String &addr = IPC_ADDR);
+    void connect(const String &addr = IPC_ADDR);
+
+    InputSync();
+    ~InputSync();
+};
+
+#endif // INPUT_SYNC_H
