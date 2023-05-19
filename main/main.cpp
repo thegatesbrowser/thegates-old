@@ -233,6 +233,8 @@ bool profile_gpu = false;
 #ifdef THE_GATES_SANDBOX
 static int external_image_fd = -1;
 static int main_pid = -1;
+
+static InputSync *input_sync = nullptr;
 #endif
 
 // Constants.
@@ -3351,7 +3353,7 @@ bool Main::start() {
 	}
 
 	// ZeroMQ
-	InputSync *input_sync = memnew(InputSync);
+	input_sync = memnew(InputSync);
 	input_sync->connect();
 #endif
 
@@ -3562,6 +3564,7 @@ bool Main::iteration() {
 	}
 
 #ifdef THE_GATES_SANDBOX
+	// Render send
 	RID main_vp_rid = RS::get_singleton()->viewport_find_from_screen_attachment(DisplayServer::MAIN_WINDOW_ID);
 	RID main_vp_texture = RS::get_singleton()->viewport_get_texture(main_vp_rid);
 
@@ -3579,6 +3582,9 @@ bool Main::iteration() {
 
 		RenderingDevice::get_singleton()->texture_copy(viewport_texture_rid, ext_texture_rid, zero, zero, size, 0, 0, 0, 0);
 	}
+
+	// Input sync
+	input_sync->receive_input_events();
 #endif
 
 	if (fixed_fps != -1) {

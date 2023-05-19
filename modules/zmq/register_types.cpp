@@ -9,7 +9,7 @@ void initialize_zmq_module(ModuleInitializationLevel p_level) {
 
 	try
 	{
-		ctx = (zmqpp::context&&)zmqpp::context();
+		ctx = zmqpp::context();
 		print_line("ZeroMQ initialized");
 	}
 	catch(const std::exception& e)
