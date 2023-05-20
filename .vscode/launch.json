@@ -8,19 +8,22 @@
             "name": "Launch editor",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/bin/godot.linuxbsd.editor.dev.x86_64",
-            "args": [ "-e" ],
+            "program": "${workspaceFolder}/bin/godot.linuxbsd.editor.dev.x86_64.llvm",
+            "args": [
+                "-e",
+                "--verbose"
+            ],
             "cwd": "${workspaceFolder}"
         },
         {
             "name": "Launch project",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/bin/godot.linuxbsd.editor.dev.x86_64",
+            "program": "${workspaceFolder}/bin/godot.linuxbsd.editor.dev.x86_64.llvm",
             "args": [
                 "--verbose",
                 "--path",
-                "/home/nordup/projects/godot/the-gates-folder/Gates/SolarSystem"
+                "/home/nordup/projects/godot/the-gates-folder/the-gates/project"
             ],
             "cwd": "${workspaceFolder}"
         },
@@ -31,8 +34,9 @@
             "program": "${workspaceFolder}/bin/godot.linuxbsd.editor.dev.sandbox.x86_64.llvm",
             "args": [
                 "--verbose",
-                "--path",
-                "/home/nordup/projects/godot/the-gates-folder/Gates/NoWindowTest"
+                "--path", "/home/nordup/projects/godot/the-gates-folder/Gates/NoWindowTest",
+                "--resolution", "1920x1080",
+                "--external-image", "42"
             ],
             "cwd": "${workspaceFolder}"
         }
