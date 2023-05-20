@@ -9,9 +9,21 @@
             "type": "shell",
             "command": "scons",
             "args": [
-              "-j", "$(nproc)", "dev_build=yes", "the_gates_sandbox=yes", "compiledb=yes", "use_llvm=yes", "linker=lld"
+              "-j", "$(nproc)", "dev_build=yes", "the_gates_sandbox=no", "compiledb=yes", "use_llvm=yes", "linker=lld", "use_static_cpp=no"
             ],
             "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build sandbox",
+            "group": "build",
+            "type": "shell",
+            "command": "scons",
+            "args": [
+              "-j", "$(nproc)", "dev_build=yes", "the_gates_sandbox=yes", "compiledb=yes", "use_llvm=yes", "linker=lld", "use_static_cpp=no"
+            ],
+            "problemMatcher": "$msCompile"
+            // Need to grant acces for pidfd_getfd
+            // sudo setcap cap_sys_ptrace=+ep /home/nordup/projects/godot/the-gates-folder/the-gates/bin/godot.linuxbsd.editor.dev.sandbox.x86_64.llvm
         },
         {
             "label": "build linux (template_debug)",
