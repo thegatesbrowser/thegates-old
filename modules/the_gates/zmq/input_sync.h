@@ -7,7 +7,7 @@
 #include "thirdparty/zmqpp/context.hpp"
 
 inline zmqpp::context ctx;
-static const String IPC_ADDR("ipc://tg-main");
+static const String IPC_ADDR("ipc://input_sync");
 
 class InputSync : public RefCounted {
 	GDCLASS(InputSync, RefCounted);
