@@ -1,6 +1,7 @@
 
 #include "input_sync.h"
-#include <socket.hpp>
+#include "socket.hpp"
+#include "zmq_context.h"
 #include "core/input/input.h"
 #include "core/core_string_names.h"
 #include "core/variant/variant.h"
@@ -45,7 +46,7 @@ void InputSync::receive_input_events() {
 }
 
 void InputSync::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("bind", "address"), &InputSync::bind, DEFVAL(IPC_ADDRESS));
+	ClassDB::bind_method(D_METHOD("bind", "address"), &InputSync::bind, DEFVAL(INPUT_SYNC_ADDRESS));
 	ClassDB::bind_method(D_METHOD("send_input_event", "event"), &InputSync::send_input_event);
 }
 
