@@ -16,22 +16,17 @@ protected:
 	static void _bind_methods();
 
 public:
-    enum SocketType {
-        SOCKET_TYPE_REQUEST = (int)zmqpp::socket_type::request,
-        SOCKET_TYPE_REPLAY = (int)zmqpp::socket_type::reply
-    };
-
 	void bind(const String &p_address = COMMAND_SYNC_ADDRESS);
 	void connect(const String &p_address = COMMAND_SYNC_ADDRESS);
+    void send_command(const String &p_command);
+    void receive_commands();
 
     String call_execute_function(const String &p_command);
 	void set_execute_function(Callable p_execute_function) { execute_function = p_execute_function; }
 	Callable get_execute_function() const { return execute_function; }
 
-	CommandSync(SocketType type = SOCKET_TYPE_REPLAY);
+	CommandSync(zmqpp::socket_type type = zmqpp::socket_type::pair);
 	~CommandSync();
 };
-
-// VARIANT_ENUM_CAST(CommandSync::SocketType)
 
 #endif // COMMAND_SYNC_H

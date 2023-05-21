@@ -18,11 +18,14 @@ class ExternalTexture : public RefCounted {
 protected:
 	static void _bind_methods();
 	Error _create(const Ref<RDTextureFormat> &p_format, const Ref<RDTextureView> &p_view, const TypedArray<PackedByteArray> &p_data);
-	Error _import(const Ref<RDTextureFormat> &p_format, const Ref<RDTextureView> &p_view, int p_main_pid, int p_fd);
+	Error _import(const Ref<RDTextureFormat> &p_format, const Ref<RDTextureView> &p_view);
 
 public:
     Error create(const RD::TextureFormat &p_format, const RD::TextureView &p_view, const Vector<Vector<uint8_t>> &p_data = Vector<Vector<uint8_t>>());
-	Error import(const RD::TextureFormat &p_format, const RD::TextureView &p_view, int p_main_pid, int p_fd);
+	Error import(const RD::TextureFormat &p_format, const RD::TextureView &p_view);
+	bool send_fd(const String &p_path);
+	bool recv_fd(const String &p_path);
+
     Error copy_to(RID p_texture) { return _copy(p_texture, false); };
     Error copy_from(RID p_texture) { return _copy(p_texture, true); };
 

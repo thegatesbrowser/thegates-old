@@ -118,6 +118,7 @@
 
 #ifdef THE_GATES_SANDBOX
 #include "modules/the_gates/external_texture.h"
+#include "modules/the_gates/command_sync.h"
 #include "modules/the_gates/input_sync.h"
 #endif
 
@@ -231,11 +232,11 @@ bool profile_gpu = false;
 
 // TheGates
 #ifdef THE_GATES_SANDBOX
-static int external_image_fd = -1;
-static int main_pid = -1;
+static String fd_path;
 
-static ExternalTexture *ext_texture = nullptr;
-static InputSync *input_sync = nullptr;
+static ExternalTexture	*ext_texture = nullptr;
+static CommandSync		*command_sync = nullptr;
+static InputSync		*input_sync = nullptr;
 #endif
 
 // Constants.
@@ -520,8 +521,7 @@ void Main::print_help(const char *p_binary) {
 
 #ifdef THE_GATES_SANDBOX
 	OS::get_singleton()->print("TheGates options:\n");
-	OS::get_singleton()->print("  --external-image <fd>             Import external image file description.\n");
-	OS::get_singleton()->print("  --main-pid <pid>                  Main process id.\n");
+	OS::get_singleton()->print("  --fd-path <path>                  External image fd path.\n");
 	OS::get_singleton()->print("\n");
 #endif
 }
@@ -1478,24 +1478,13 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 				goto error;
 			}
 #ifdef THE_GATES_SANDBOX
-		} else if (I->get() == "--external-image") {
+		} else if (I->get() == "--fd-path") {
 
 			if (I->next()) {
-				external_image_fd = I->next()->get().to_int();
-
+				fd_path = I->next()->get();
 				N = I->next()->next();
 			} else {
-				OS::get_singleton()->print("Missing --external-image argument, aborting.\n");
-				goto error;
-			}
-		} else if (I->get() == "--main-pid") {
-
-			if (I->next()) {
-				main_pid = I->next()->get().to_int();
-
-				N = I->next()->next();
-			} else {
-				OS::get_singleton()->print("Missing --main-pid argument, aborting.\n");
+				OS::get_singleton()->print("Missing --fd-path argument, aborting.\n");
 				goto error;
 			}
 #endif
@@ -3342,10 +3331,22 @@ bool Main::start() {
 	OS::get_singleton()->benchmark_dump();
 
 #ifdef THE_GATES_SANDBOX
+	// CommandSync
+	command_sync = memnew(CommandSync);
+	command_sync->connect();
+	command_sync->send_command("send_fd");
+
 	// ExternalTexture
+	print_line("ExternalTexture: waiting for fd");
+	ext_texture = memnew(ExternalTexture);
+	bool success = ext_texture->recv_fd(fd_path); // WARNING: BLOCKING COMMAND
+	if (!success) {
+		return false;
+	}
+
 	RenderingDevice::TextureView view;
 	RenderingDevice::TextureFormat format;
-	
+
 	Size2i size = display_server->window_get_size(DisplayServer::MAIN_WINDOW_ID);
 	format.format = RenderingDevice::DATA_FORMAT_R8G8B8A8_UNORM;
 	format.usage_bits = RenderingDevice::TEXTURE_USAGE_CAN_COPY_TO_BIT;
@@ -3353,8 +3354,7 @@ bool Main::start() {
 	format.height = static_cast<uint32_t>(size.height);
 	format.depth = 1;
 
-	ext_texture = memnew(ExternalTexture);
-	Error err = ext_texture->import(format, view, main_pid, external_image_fd);
+	Error err = ext_texture->import(format, view);
 	if (err != OK) {
 		return false;
 	}
