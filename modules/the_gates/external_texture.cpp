@@ -1,6 +1,5 @@
 #include "external_texture.h"
-#include <sys/syscall.h>
-#include <unistd.h>
+#include "flingfd.h"
 
 Error ExternalTexture::create(const RD::TextureFormat &p_format, const RD::TextureView &p_view, const Vector<Vector<uint8_t>> &p_data) {
 	view = p_view;
@@ -11,11 +10,8 @@ Error ExternalTexture::create(const RD::TextureFormat &p_format, const RD::Textu
     return OK;
 }
 
-Error ExternalTexture::import(const RD::TextureFormat &p_format, const RD::TextureView &p_view, int p_pid, int p_fd) {
-	int pid_fd = syscall(SYS_pidfd_open, p_pid, 0);
-	fd = syscall(SYS_pidfd_getfd, pid_fd, p_fd, 0);
-	ERR_FAIL_COND_V_MSG(fd == -1, ERR_CANT_ACQUIRE_RESOURCE, "Unable to get fd " + itos(p_fd) + " from process " + itos(p_pid));
-	print_line("Fd " + itos(p_fd) + " gotten from process " + itos(p_pid));
+Error ExternalTexture::import(const RD::TextureFormat &p_format, const RD::TextureView &p_view) {
+	ERR_FAIL_COND_V_MSG(fd == -1, ERR_UNAVAILABLE, "fd is no valid. Receive fd first");
 
 	view = p_view;
 	format = p_format;
@@ -25,9 +21,21 @@ Error ExternalTexture::import(const RD::TextureFormat &p_format, const RD::Textu
     return OK;
 }
 
+bool ExternalTexture::send_fd(const String &p_path) {
+	ERR_FAIL_COND_V_MSG(fd == -1, false, "Sending invalid fd. First create external texture");
+	return flingfd_simple_send(p_path.utf8().get_data(), fd);
+}
+
+bool ExternalTexture::recv_fd(const String &p_path) {
+	fd = flingfd_simple_recv(p_path.utf8().get_data());
+	ERR_FAIL_COND_V_MSG(fd == -1, false, "Recieved fd failed");
+
+	return true;
+}
+
 Error ExternalTexture::_copy(RID p_texture, bool p_from) {
 	ERR_FAIL_COND_V_MSG(!rid.is_valid(), ERR_UNAVAILABLE, "ExternalTexture is not valid. Create or import first");
-	ERR_FAIL_COND_V_MSG(!p_texture.is_valid(), ERR_INVALID_PARAMETER, "Parameter texture is not valid.");
+	ERR_FAIL_COND_V_MSG(!p_texture.is_valid(), ERR_INVALID_PARAMETER, "Parameter texture is not valid");
 
 	Vector3 size = {
 		static_cast<float>(format.width),
@@ -56,16 +64,16 @@ Error ExternalTexture::_create(const Ref<RDTextureFormat> &p_format, const Ref<R
 	return create(RD::_get_base(p_format), RD::_get_base(p_view), data);
 }
 
-Error ExternalTexture::_import(const Ref<RDTextureFormat> &p_format, const Ref<RDTextureView> &p_view, int p_main_pid, int p_fd) {
+Error ExternalTexture::_import(const Ref<RDTextureFormat> &p_format, const Ref<RDTextureView> &p_view) {
 	ERR_FAIL_COND_V(p_format.is_null(), ERR_INVALID_PARAMETER);
 	ERR_FAIL_COND_V(p_view.is_null(), ERR_INVALID_PARAMETER);
 
-	return import(RD::_get_base(p_format), RD::_get_base(p_view), p_main_pid, p_fd);
+	return import(RD::_get_base(p_format), RD::_get_base(p_view));
 }
 
 void ExternalTexture::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("create", "format", "view"), &ExternalTexture::_create, DEFVAL(Array()));
-	ClassDB::bind_method(D_METHOD("import", "format", "view", "fid", "fd"), &ExternalTexture::_import);
+	ClassDB::bind_method(D_METHOD("send_fd", "path"), &ExternalTexture::send_fd);
 	ClassDB::bind_method(D_METHOD("copy_to", "texture"), &ExternalTexture::copy_to);
 	ClassDB::bind_method(D_METHOD("copy_from", "texture"), &ExternalTexture::copy_from);
 
