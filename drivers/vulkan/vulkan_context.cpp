@@ -1952,12 +1952,6 @@ Error VulkanContext::_update_swap_chain(Window *window) {
 		}
 	}
 
-#ifdef THE_GATES_SANDBOX
-	uint32_t imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-#else
-	uint32_t imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT; // TODO: remove dst
-#endif
-
 	VkSwapchainCreateInfoKHR swapchain_ci = {
 		/*sType*/ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
 		/*pNext*/ nullptr,
@@ -1971,7 +1965,7 @@ Error VulkanContext::_update_swap_chain(Window *window) {
 				/*height*/ swapchainExtent.height,
 		},
 		/*imageArrayLayers*/ 1,
-		/*imageUsage*/ imageUsage,
+		/*imageUsage*/ VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 		/*imageSharingMode*/ VK_SHARING_MODE_EXCLUSIVE,
 		/*queueFamilyIndexCount*/ 0,
 		/*pQueueFamilyIndices*/ nullptr,
@@ -2540,11 +2534,6 @@ VkPhysicalDevice VulkanContext::get_physical_device() {
 
 int VulkanContext::get_swapchain_image_count() const {
 	return swapchainImageCount;
-}
-
-VkImage VulkanContext::get_swapchain_image(DisplayServer::WindowID p_window) const {
-	ERR_FAIL_COND_V(!windows.has(p_window), VK_NULL_HANDLE);
-	return windows[p_window].swapchain_image_resources->image;
 }
 
 VkQueue VulkanContext::get_graphics_queue() const {

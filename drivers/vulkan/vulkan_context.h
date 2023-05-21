@@ -281,13 +281,11 @@ public:
 	const ShaderCapabilities &get_shader_capabilities() const { return shader_capabilities; };
 	const StorageBufferCapabilities &get_storage_buffer_capabilities() const { return storage_buffer_capabilities; };
 	const VkPhysicalDeviceFeatures &get_physical_device_features() const { return physical_device_features; };
-	const VkPhysicalDeviceMemoryProperties &get_memory_properties() const { return memory_properties; };
 
 	VkDevice get_device();
 	VkPhysicalDevice get_physical_device();
 	VkInstance get_instance() { return inst; }
 	int get_swapchain_image_count() const;
-	VkImage get_swapchain_image(DisplayServer::WindowID p_window = 0) const;
 	VkQueue get_graphics_queue() const;
 	uint32_t get_graphics_queue_family_index() const;
 
