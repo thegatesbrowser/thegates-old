@@ -117,8 +117,8 @@
 #endif
 
 #ifdef THE_GATES_SANDBOX
-#include <sys/syscall.h>
-#include "modules/zmq/input_sync.h"
+#include "modules/the_gates/external_texture.h"
+#include "modules/the_gates/input_sync.h"
 #endif
 
 /* Static members */
@@ -234,6 +234,7 @@ bool profile_gpu = false;
 static int external_image_fd = -1;
 static int main_pid = -1;
 
+static ExternalTexture *ext_texture = nullptr;
 static InputSync *input_sync = nullptr;
 #endif
 
@@ -3341,18 +3342,24 @@ bool Main::start() {
 	OS::get_singleton()->benchmark_dump();
 
 #ifdef THE_GATES_SANDBOX
-	// External texture
-	int pid_fd = syscall(SYS_pidfd_open, main_pid, 0);
-	external_image_fd = syscall(SYS_pidfd_getfd, pid_fd, external_image_fd, 0);
-	print_line("Main process pid " + itos(main_pid) + ". PidFd " + itos(pid_fd) + ". Fd " + itos(external_image_fd));
+	// ExternalTexture
+	RenderingDevice::TextureView view;
+	RenderingDevice::TextureFormat format;
+	
+	Size2i size = display_server->window_get_size(DisplayServer::MAIN_WINDOW_ID);
+	format.format = RenderingDevice::DATA_FORMAT_R8G8B8A8_UNORM;
+	format.usage_bits = RenderingDevice::TEXTURE_USAGE_CAN_COPY_TO_BIT;
+	format.width = static_cast<uint32_t>(size.width);
+	format.height = static_cast<uint32_t>(size.height);
+	format.depth = 1;
 
-	Error err = rendering_server->get_rendering_device()->import_external_texture(external_image_fd);
+	ext_texture = memnew(ExternalTexture);
+	Error err = ext_texture->import(format, view, main_pid, external_image_fd);
 	if (err != OK) {
-		ERR_PRINT("Unable to import external image " + itos(external_image_fd));
 		return false;
 	}
 
-	// ZeroMQ
+	// InputSync
 	input_sync = memnew(InputSync);
 	input_sync->connect();
 #endif
@@ -3567,21 +3574,8 @@ bool Main::iteration() {
 	// Render send
 	RID main_vp_rid = RS::get_singleton()->viewport_find_from_screen_attachment(DisplayServer::MAIN_WINDOW_ID);
 	RID main_vp_texture = RS::get_singleton()->viewport_get_texture(main_vp_rid);
-
 	RID viewport_texture_rid = RS::get_singleton()->texture_get_rd_texture_rid(main_vp_texture);
-	RID ext_texture_rid = RD::get_singleton()->get_external_texture_rid();
-
-	if (viewport_texture_rid.is_valid() && ext_texture_rid.is_valid()) {
-		RD::TextureFormat t_format = RD::get_singleton()->get_external_texture_format();
-		Vector3 size = {
-			static_cast<float>(t_format.width),
-			static_cast<float>(t_format.height),
-			static_cast<float>(t_format.depth)
-		};
-		Vector3 zero = { 0, 0, 0 };
-
-		RenderingDevice::get_singleton()->texture_copy(viewport_texture_rid, ext_texture_rid, zero, zero, size, 0, 0, 0, 0);
-	}
+	ext_texture->copy_from(viewport_texture_rid);
 
 	// Input sync
 	input_sync->receive_input_events();

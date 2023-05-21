@@ -519,11 +519,10 @@ public:
 		}
 	};
 
-	virtual RID create_external_texture(const TextureFormat &p_format, const TextureView &p_view, const Vector<Vector<uint8_t>> &p_data = Vector<Vector<uint8_t>>()) { return RID(); };
-	virtual int get_external_texture_fd(RID p_texture) { return -1; };
-	virtual Error import_external_texture(int fd) { return ERR_METHOD_NOT_FOUND; };
-	virtual RID get_external_texture_rid() { return RID(); };
-	virtual TextureFormat get_external_texture_format() { return TextureFormat(); };
+	virtual RID external_texture_create(const TextureFormat &p_format, const TextureView &p_view, int *fd, const Vector<Vector<uint8_t>> &p_data = Vector<Vector<uint8_t>>()) { return RID(); };
+	virtual RID external_texture_import(const TextureFormat &p_format, const TextureView &p_view, int fd) { return RID(); };
+	static TextureFormat _get_base(const Ref<RDTextureFormat> &p_format);
+	static TextureView _get_base(const Ref<RDTextureView> &p_format);
 
 	virtual RID texture_create(const TextureFormat &p_format, const TextureView &p_view, const Vector<Vector<uint8_t>> &p_data = Vector<Vector<uint8_t>>()) = 0;
 	virtual RID texture_create_shared(const TextureView &p_view, RID p_with_texture) = 0;
@@ -1316,8 +1315,6 @@ protected:
 	static const uint32_t MAX_UNIFORM_SETS = 16;
 
 	//binders to script API
-	RID _create_external_texture(const Ref<RDTextureFormat> &p_format, const Ref<RDTextureView> &p_view, const TypedArray<PackedByteArray> &p_data = Array());
-
 	RID _texture_create(const Ref<RDTextureFormat> &p_format, const Ref<RDTextureView> &p_view, const TypedArray<PackedByteArray> &p_data = Array());
 	RID _texture_create_shared(const Ref<RDTextureView> &p_view, RID p_with_texture);
 	RID _texture_create_shared_from_slice(const Ref<RDTextureView> &p_view, RID p_with_texture, uint32_t p_layer, uint32_t p_mipmap, uint32_t p_mipmaps = 1, TextureSliceType p_slice_type = TEXTURE_SLICE_2D);

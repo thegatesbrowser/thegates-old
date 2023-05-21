@@ -90,16 +90,12 @@ RID RenderingDevice::shader_create_from_spirv(const Vector<ShaderStageSPIRVData>
 	return shader_create_from_bytecode(bytecode);
 }
 
-RID RenderingDevice::_create_external_texture(const Ref<RDTextureFormat> &p_format, const Ref<RDTextureView> &p_view, const TypedArray<PackedByteArray> &p_data) {
-	ERR_FAIL_COND_V(p_format.is_null(), RID());
-	ERR_FAIL_COND_V(p_view.is_null(), RID());
-	Vector<Vector<uint8_t>> data;
-	for (int i = 0; i < p_data.size(); i++) {
-		Vector<uint8_t> byte_slice = p_data[i];
-		ERR_FAIL_COND_V(byte_slice.is_empty(), RID());
-		data.push_back(byte_slice);
-	}
-	return create_external_texture(p_format->base, p_view->base, data);
+RenderingDevice::TextureFormat RenderingDevice::_get_base(const Ref<RDTextureFormat> &p_format) {
+	return p_format->base;
+}
+
+RenderingDevice::TextureView RenderingDevice::_get_base(const Ref<RDTextureView> &p_format) {
+	return p_format->base;
 }
 
 RID RenderingDevice::_texture_create(const Ref<RDTextureFormat> &p_format, const Ref<RDTextureView> &p_view, const TypedArray<PackedByteArray> &p_data) {
@@ -716,10 +712,6 @@ Error RenderingDevice::_reflect_spirv(const Vector<ShaderStageSPIRVData> &p_spir
 }
 
 void RenderingDevice::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("create_external_texture", "format", "view", "data"), &RenderingDevice::_create_external_texture, DEFVAL(Array()));
-	ClassDB::bind_method(D_METHOD("get_external_texture_fd", "texture"), &RenderingDevice::get_external_texture_fd);
-	ClassDB::bind_method(D_METHOD("get_external_texture_rid"), &RenderingDevice::get_external_texture_rid);
-
 	ClassDB::bind_method(D_METHOD("texture_create", "format", "view", "data"), &RenderingDevice::_texture_create, DEFVAL(Array()));
 	ClassDB::bind_method(D_METHOD("texture_create_shared", "view", "with_texture"), &RenderingDevice::_texture_create_shared);
 	ClassDB::bind_method(D_METHOD("texture_create_shared_from_slice", "view", "with_texture", "layer", "mipmap", "mipmaps", "slice_type"), &RenderingDevice::_texture_create_shared_from_slice, DEFVAL(1), DEFVAL(TEXTURE_SLICE_2D));

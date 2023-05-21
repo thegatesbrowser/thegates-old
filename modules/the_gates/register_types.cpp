@@ -1,8 +1,9 @@
 #include "register_types.h"
 #include "core/object/class_db.h"
-#include "exposed/script_server_exposed.h"
-#include "exposed/project_settings_exposed.h"
-#include "zmq/input_sync.h"
+#include "input_sync.h"
+#include "external_texture.h"
+#include "script_server_exposed.h"
+#include "project_settings_exposed.h"
 
 void initialize_the_gates_module(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
@@ -19,9 +20,10 @@ void initialize_the_gates_module(ModuleInitializationLevel p_level) {
 		ERR_PRINT("ZeroMQ initialization failure.");
 	}
 
+	GDREGISTER_CLASS(InputSync);
+    GDREGISTER_CLASS(ExternalTexture);
     GDREGISTER_CLASS(ScriptServerExposed);
     GDREGISTER_CLASS(ProjectSettingsExposed);
-	GDREGISTER_CLASS(InputSync);
 }
 
 void uninitialize_the_gates_module(ModuleInitializationLevel p_level) {

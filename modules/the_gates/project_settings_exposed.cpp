@@ -5,9 +5,9 @@
 #include "scene/resources/packed_scene.h"
 #include "scene/main/window.h"
 
-void ProjectSettingsExposed::add_autoload(const StringName &name, const String &path, const bool &is_singleton = false) {
+void ProjectSettingsExposed::add_autoload(const StringName &p_name, const String &p_path, bool is_singleton = false) {
     // Add autoload
-    ProjectSettings::AutoloadInfo autoload = { name, path, is_singleton };
+    ProjectSettings::AutoloadInfo autoload = { p_name, p_path, is_singleton };
     ProjectSettings::get_singleton()->add_autoload(autoload);
 
     // FROM: main.cpp line 2358 --->
@@ -53,9 +53,9 @@ void ProjectSettingsExposed::add_autoload(const StringName &name, const String &
     sml->get_root()->add_child(n);
 }
 
-void ProjectSettingsExposed::remove_autoload(const StringName &name) {
-	ERR_FAIL_COND_MSG(!ProjectSettings::get_singleton()->has_autoload(name), "Trying to remove non-existent autoload.");
-    ProjectSettings::AutoloadInfo autoload = ProjectSettings::get_singleton()->get_autoload(name);
+void ProjectSettingsExposed::remove_autoload(const StringName &p_name) {
+	ERR_FAIL_COND_MSG(!ProjectSettings::get_singleton()->has_autoload(p_name), "Trying to remove non-existent autoload.");
+    ProjectSettings::AutoloadInfo autoload = ProjectSettings::get_singleton()->get_autoload(p_name);
 
 	// Remove from global constants
     if (autoload.is_singleton) {
@@ -72,7 +72,7 @@ void ProjectSettingsExposed::remove_autoload(const StringName &name) {
     sml->get_root()->remove_child(n);
 
     // Remove autoload
-    ProjectSettings::get_singleton()->remove_autoload(name);
+    ProjectSettings::get_singleton()->remove_autoload(p_name);
 }
 
 PackedStringArray ProjectSettingsExposed::get_autoload_list() {

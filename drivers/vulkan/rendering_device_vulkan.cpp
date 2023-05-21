@@ -1659,7 +1659,7 @@ void RenderingDeviceVulkan::_buffer_memory_barrier(VkBuffer buffer, uint64_t p_f
 /**** TEXTURE ****/
 /*****************/
 
-RID RenderingDeviceVulkan::create_external_texture(const TextureFormat &p_format, const TextureView &p_view, const Vector<Vector<uint8_t>> &p_data) {
+RID RenderingDeviceVulkan::external_texture_create(const TextureFormat &p_format, const TextureView &p_view, int *fd, const Vector<Vector<uint8_t>> &p_data) {
 	_THREAD_SAFE_METHOD_
 
 	VkExternalMemoryHandleTypeFlagBits ext_handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT; // TODO: handle platform
@@ -1923,7 +1923,7 @@ RID RenderingDeviceVulkan::create_external_texture(const TextureFormat &p_format
 		/*memory*/ texture.allocation_info.deviceMemory,
 		/*handleType*/ ext_handle_type
 	};
-	err = vkGetMemoryFdKHR(device, &memory_get_info, &ext_image_fd);
+	err = vkGetMemoryFdKHR(device, &memory_get_info, fd);
 	ERR_FAIL_COND_V_MSG(err, RID(), "vkGetMemoryFdKHR failed with error " + itos(err) + ".");
 
 	// Set base layout based on usage priority.
@@ -2046,9 +2046,6 @@ RID RenderingDeviceVulkan::create_external_texture(const TextureFormat &p_format
 	set_resource_name(id, "RID:" + itos(id.get_id()));
 #endif
 
-	ext_texture_rid = id;
-	ext_texture_format = p_format;
-
 	if (p_data.size()) {
 		for (uint32_t i = 0; i < image_create_info.arrayLayers; i++) {
 			_texture_update(id, i, p_data[i], RD::BARRIER_MASK_ALL_BARRIERS, true);
@@ -2058,7 +2055,7 @@ RID RenderingDeviceVulkan::create_external_texture(const TextureFormat &p_format
 }
 
 
-RID RenderingDeviceVulkan::_import_external_texture(const TextureFormat &p_format, const TextureView &p_view, const int fd) {
+RID RenderingDeviceVulkan::external_texture_import(const TextureFormat &p_format, const TextureView &p_view, int fd) {
 	_THREAD_SAFE_METHOD_
 
 	Vector<Vector<uint8_t>> p_data = Vector<Vector<uint8_t>>();
@@ -2443,29 +2440,6 @@ RID RenderingDeviceVulkan::_import_external_texture(const TextureFormat &p_forma
 		}
 	}
 	return id;
-}
-
-Error RenderingDeviceVulkan::import_external_texture(const int fd) {
-	if (fd == -1) {
-		return ERR_INVALID_PARAMETER;
-	}
-
-	TextureFormat t_format = {};
-	t_format.format = RenderingDevice::DATA_FORMAT_R8G8B8A8_UNORM;
-	t_format.usage_bits = RenderingDevice::TEXTURE_USAGE_CAN_COPY_TO_BIT;
-	t_format.width = static_cast<uint32_t>(context->window_get_width());
-	t_format.height = static_cast<uint32_t>(context->window_get_height());
-	t_format.depth = 1;
-	TextureView t_view = {};
-
-	ext_image_fd = fd;
-	ext_texture_format = t_format;
-	ext_texture_rid = _import_external_texture(t_format, t_view, ext_image_fd);
-	if (!ext_texture_rid.is_valid()) {
-		return ERR_CANT_CREATE;
-	}
-
-	return OK;
 }
 
 RID RenderingDeviceVulkan::texture_create(const TextureFormat &p_format, const TextureView &p_view, const Vector<Vector<uint8_t>> &p_data) {
@@ -10299,6 +10273,9 @@ void RenderingDeviceVulkan::finalize() {
 		HashMap<uint32_t, VmaPool>::Iterator E = small_allocs_pools.begin();
 		vmaDestroyPool(allocator, E->value);
 		small_allocs_pools.remove(E);
+	}
+	if (ext_image_pool != VK_NULL_HANDLE) {
+		vmaDestroyPool(allocator, ext_image_pool);
 	}
 	vmaDestroyAllocator(allocator);
 
