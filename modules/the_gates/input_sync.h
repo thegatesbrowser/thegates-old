@@ -3,11 +3,9 @@
 
 #include "core/object/ref_counted.h"
 #include "core/input/input.h"
-#include "thirdparty/zmqpp/zmqpp.hpp"
-#include "thirdparty/zmqpp/context.hpp"
+#include "thirdparty/zmqpp/socket.hpp"
 
-static const String IPC_ADDRESS("ipc://input_sync");
-inline zmqpp::context ctx;
+static const String INPUT_SYNC_ADDRESS("ipc://input_sync");
 
 class InputSync : public RefCounted {
 	GDCLASS(InputSync, RefCounted);
@@ -18,8 +16,8 @@ protected:
 	static void _bind_methods();
 
 public:
-	void bind(const String &p_address = IPC_ADDRESS);
-	void connect(const String &p_address = IPC_ADDRESS);
+	void bind(const String &p_address = INPUT_SYNC_ADDRESS);
+	void connect(const String &p_address = INPUT_SYNC_ADDRESS);
 	void send_input_event(const Ref<InputEvent> &p_event);
 	void receive_input_events();
 
