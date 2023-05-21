@@ -1,4 +1,8 @@
 {
+    "files.exclude": {
+        "**/*.o": true,
+        "**/*.a": true
+    },
     "files.associations": {
         "SCsub": "python",
         "*.inc": "cpp",
@@ -47,7 +51,8 @@
         "type_traits": "cpp",
         "variant": "cpp",
         "stop_token": "cpp",
-        "typeinfo": "cpp"
+        "typeinfo": "cpp",
+        "utility": "cpp"
     },
     "esbonio.sphinx.confDir": "",
     "C_Cpp.errorSquiggles": "disabled"

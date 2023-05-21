@@ -6,8 +6,8 @@
 #include "thirdparty/zmqpp/zmqpp.hpp"
 #include "thirdparty/zmqpp/context.hpp"
 
+static const String IPC_ADDRESS("ipc://input_sync");
 inline zmqpp::context ctx;
-static const String IPC_ADDR("ipc://input_sync");
 
 class InputSync : public RefCounted {
 	GDCLASS(InputSync, RefCounted);
@@ -18,9 +18,9 @@ protected:
 	static void _bind_methods();
 
 public:
-	void bind(const String &addr = IPC_ADDR);
-	void connect(const String &addr = IPC_ADDR);
-	void send_input_event(const Ref<InputEvent> &event);
+	void bind(const String &p_address = IPC_ADDRESS);
+	void connect(const String &p_address = IPC_ADDRESS);
+	void send_input_event(const Ref<InputEvent> &p_event);
 	void receive_input_events();
 
 	InputSync();
