@@ -37,6 +37,7 @@
 #include "core/variant/callable.h"
 
 class Texture2D;
+class CommandSync;
 
 class DisplayServer : public Object {
 	GDCLASS(DisplayServer, Object)
@@ -100,6 +101,7 @@ protected:
 	static int server_create_count;
 
 	friend class RendererViewport;
+	friend class CommandSync;
 
 public:
 	enum Feature {

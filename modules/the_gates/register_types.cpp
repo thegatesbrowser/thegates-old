@@ -2,6 +2,7 @@
 #include "core/object/class_db.h"
 #include "zmq_context.h"
 #include "input_sync.h"
+#include "command.h"
 #include "command_sync.h"
 #include "external_texture.h"
 #include "script_server_exposed.h"
@@ -23,6 +24,7 @@ void initialize_the_gates_module(ModuleInitializationLevel p_level) {
 	}
 
 	GDREGISTER_CLASS(InputSync);
+	GDREGISTER_CLASS(Command);
 	GDREGISTER_CLASS(CommandSync);
     GDREGISTER_CLASS(ExternalTexture);
     GDREGISTER_CLASS(ScriptServerExposed);

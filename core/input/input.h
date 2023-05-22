@@ -38,6 +38,8 @@
 #include "core/templates/rb_set.h"
 #include "core/variant/typed_array.h"
 
+class CommandSync;
+
 class Input : public Object {
 	GDCLASS(Input, Object);
 	_THREAD_SAFE_CLASS_
@@ -232,6 +234,7 @@ private:
 #endif
 
 	friend class DisplayServer;
+	friend class CommandSync;
 
 	static void (*set_mouse_mode_func)(MouseMode);
 	static MouseMode (*get_mouse_mode_func)();

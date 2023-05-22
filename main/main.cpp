@@ -3334,6 +3334,7 @@ bool Main::start() {
 	// CommandSync
 	command_sync = memnew(CommandSync);
 	command_sync->connect();
+	command_sync->bind_input_functions();
 	command_sync->send_command("send_fd");
 
 	// ExternalTexture
