@@ -49,10 +49,9 @@ void CommandSync::receive_commands() {
 	}
 }
 
-void CommandSync::bind_input_functions() {
-	auto _input_set_mouse_mode = [] (Input::MouseMode p_mode)
-	{
-		print_line("bind_input_functions _input_set_mouse_mode " + itos((int)p_mode));
+void CommandSync::bind_commands() {
+	auto _input_set_mouse_mode = [] (Input::MouseMode p_mode) {
+		print_line("_input_set_mouse_mode " + itos((int)p_mode));
 		DisplayServer::_input_set_mouse_mode(p_mode);
 
 		Array args;
@@ -60,6 +59,15 @@ void CommandSync::bind_input_functions() {
 		singleton->send_command("set_mouse_mode", args);
 	};
 	Input::set_mouse_mode_func = _input_set_mouse_mode;
+
+	auto _scene_tree_open_gate = [] (String p_url) {
+		print_line("_scene_tree_open_gate " + p_url);
+
+		Array args;
+		args.append(p_url);
+		singleton->send_command("open_gate", args);
+	};
+	SceneTree::open_gate_func = _scene_tree_open_gate;
 }
 
 void CommandSync::_bind_methods() {
@@ -73,7 +81,9 @@ void CommandSync::_bind_methods() {
 
 CommandSync::CommandSync(zmqpp::socket_type type)
 	: sock(zmqpp::socket(ctx, type)) {
-	singleton = this;
+	if (singleton == nullptr) {
+		singleton = this;
+	}
 }
 
 CommandSync::~CommandSync() {
