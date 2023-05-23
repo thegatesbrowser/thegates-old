@@ -419,6 +419,11 @@ public:
 	static void add_idle_callback(IdleCallback p_callback);
 
 	void set_disable_node_threading(bool p_disable);
+	
+	// TheGates
+	static void (*open_gate_func)(String);
+	void open_gate(String p_url);
+
 	//default texture settings
 
 	SceneTree();

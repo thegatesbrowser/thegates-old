@@ -1530,7 +1530,15 @@ bool SceneTree::is_multiplayer_poll_enabled() const {
 	return multiplayer_poll;
 }
 
+void (*SceneTree::open_gate_func)(String) = nullptr;
+
+void SceneTree::open_gate(String p_url) {
+	open_gate_func(p_url);
+}
+
 void SceneTree::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("open_gate", "url"), &SceneTree::open_gate);
+
 	ClassDB::bind_method(D_METHOD("get_root"), &SceneTree::get_root);
 	ClassDB::bind_method(D_METHOD("has_group", "name"), &SceneTree::has_group);
 
