@@ -9,7 +9,7 @@
             "type": "shell",
             "command": "scons",
             "args": [
-              "-j", "$(nproc)", "dev_build=yes", "the_gates_sandbox=no", "compiledb=yes", "use_llvm=yes", "linker=lld", "use_static_cpp=yes"
+              "-j", "$(nproc)", "dev_build=yes", "the_gates_sandbox=no", "compiledb=yes", "use_llvm=yes", "linker=lld"
             ],
             "problemMatcher": "$msCompile"
         },
@@ -19,7 +19,7 @@
             "type": "shell",
             "command": "scons",
             "args": [
-              "-j", "$(nproc)", "dev_build=yes", "the_gates_sandbox=yes", "compiledb=yes", "use_llvm=yes", "linker=lld", "use_static_cpp=yes"
+              "-j", "$(nproc)", "dev_build=yes", "the_gates_sandbox=yes", "compiledb=yes", "use_llvm=yes", "linker=lld"
             ],
             "problemMatcher": "$msCompile"
         },
