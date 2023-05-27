@@ -31,7 +31,7 @@ thirdparty_sources = [
 ]
 thirdparty_sources = [thirdparty_dir + file for file in thirdparty_sources]
 env_tg.Prepend(CPPPATH=[thirdparty_dir])
-env_tg.Prepend(CPPDEFINES=["ZMQ_STATIC"])
+# env_tg.Prepend(CPPDEFINES=["ZMQ_STATIC"])
 
 # flingfd
 if env["platform"] == "linuxbsd":
