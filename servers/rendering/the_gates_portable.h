@@ -1,0 +1,41 @@
+#ifndef THE_GATES_PORTABLE_H
+#define THE_GATES_PORTABLE_H
+
+#ifdef USE_VOLK
+#include <volk.h>
+#else
+#include <vulkan/vulkan.h>
+#endif
+
+#ifdef _WIN32   // ===== definitions on windows ===== //
+
+// #include "Windows.h" // when not using volk?
+typedef HANDLE FileHandle;
+#define FileHandleInvalid nullptr
+
+#define vkGetMemoryXKHR vkGetMemoryWin32HandleKHR
+#define VkMemoryGetXInfoKHR VkMemoryGetWin32HandleInfoKHR
+#define VkImportMemoryXInfoKHR VkImportMemoryWin32HandleInfoKHR
+
+#define VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_X_BIT VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT
+#define VK_STRUCTURE_TYPE_MEMORY_GET_X_INFO_KHR VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR
+#define VK_STRUCTURE_TYPE_EXPORT_MEMORY_X_INFO_KHR VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_KHR
+#define VK_STRUCTURE_TYPE_IMPORT_MEMORY_X_INFO_KHR VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR
+
+#else           // ===== definitions on other (unix) ===== //
+
+typedef int FileHandle;
+#define FileHandleInvalid -1
+
+#define vkGetMemoryXKHR vkGetMemoryFdKHR
+#define VkMemoryGetXInfoKHR VkMemoryGetFdInfoKHR
+#define VkImportMemoryXInfoKHR VkImportMemoryFdInfoKHR
+
+#define VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_X_BIT VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT
+#define VK_STRUCTURE_TYPE_MEMORY_GET_X_INFO_KHR VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR
+#define VK_STRUCTURE_TYPE_EXPORT_MEMORY_X_INFO_KHR VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR
+#define VK_STRUCTURE_TYPE_IMPORT_MEMORY_X_INFO_KHR VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR
+
+#endif
+
+#endif // THE_GATES_PORTABLE_H
