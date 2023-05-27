@@ -34,6 +34,7 @@
 #include "core/object/class_db.h"
 #include "core/variant/typed_array.h"
 #include "servers/display_server.h"
+#include "the_gates_portable.h"
 
 class RDTextureFormat;
 class RDTextureView;
@@ -519,8 +520,8 @@ public:
 		}
 	};
 
-	virtual RID external_texture_create(const TextureFormat &p_format, const TextureView &p_view, int *fd, const Vector<Vector<uint8_t>> &p_data = Vector<Vector<uint8_t>>()) { return RID(); };
-	virtual RID external_texture_import(const TextureFormat &p_format, const TextureView &p_view, int fd) { return RID(); };
+	virtual RID external_texture_create(const TextureFormat &p_format, const TextureView &p_view, FileHandle *p_filehandle, const Vector<Vector<uint8_t>> &p_data = Vector<Vector<uint8_t>>()) { return RID(); };
+	virtual RID external_texture_import(const TextureFormat &p_format, const TextureView &p_view, FileHandle p_filehandle) { return RID(); };
 	static TextureFormat _get_base(const Ref<RDTextureFormat> &p_format);
 	static TextureView _get_base(const Ref<RDTextureView> &p_format);
 

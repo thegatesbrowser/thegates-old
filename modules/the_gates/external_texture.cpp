@@ -8,38 +8,38 @@
 Error ExternalTexture::create(const RD::TextureFormat &p_format, const RD::TextureView &p_view, const Vector<Vector<uint8_t>> &p_data) {
 	view = p_view;
 	format = p_format;
-	rid = RD::get_singleton()->external_texture_create(p_format, p_view, &fd, p_data);
+	rid = RD::get_singleton()->external_texture_create(p_format, p_view, &filehandle, p_data);
 	ERR_FAIL_COND_V_MSG(!rid.is_valid(), ERR_CANT_CREATE, "Unable to create external texture");
 
     return OK;
 }
 
 Error ExternalTexture::import(const RD::TextureFormat &p_format, const RD::TextureView &p_view) {
-	ERR_FAIL_COND_V_MSG(fd == -1, ERR_UNAVAILABLE, "fd is no valid. Receive fd first");
+	ERR_FAIL_COND_V_MSG(filehandle == FileHandleInvalid, ERR_UNAVAILABLE, "filehandle is no valid. Receive filehandle first");
 
 	view = p_view;
 	format = p_format;
-	rid = RD::get_singleton()->external_texture_import(format, view, fd);
-	ERR_FAIL_COND_V_MSG(!rid.is_valid(), ERR_CANT_CREATE, "Unable to import external texture from fd " + itos(fd));
+	rid = RD::get_singleton()->external_texture_import(format, view, filehandle);
+	ERR_FAIL_COND_V_MSG(!rid.is_valid(), ERR_CANT_CREATE, "Unable to import external texture from filehandle");
 
     return OK;
 }
 
-bool ExternalTexture::send_fd(const String &p_path) {
-	ERR_FAIL_COND_V_MSG(fd == -1, false, "Sending invalid fd. First create external texture");
+bool ExternalTexture::send_filehandle(const String &p_path) {
+	ERR_FAIL_COND_V_MSG(filehandle == FileHandleInvalid, false, "Sending invalid filehandle. First create external texture");
 #ifdef _WIN32
 #else
-	return flingfd_simple_send(p_path.utf8().get_data(), fd);
+	return flingfd_simple_send(p_path.utf8().get_data(), filehandle);
 #endif
 	return false;
 }
 
-bool ExternalTexture::recv_fd(const String &p_path) {
+bool ExternalTexture::recv_filehandle(const String &p_path) {
 #ifdef _WIN32
 #else
-	fd = flingfd_simple_recv(p_path.utf8().get_data());
+	filehandle = flingfd_simple_recv(p_path.utf8().get_data());
 #endif
-	ERR_FAIL_COND_V_MSG(fd == -1, false, "Recieved fd failed");
+	ERR_FAIL_COND_V_MSG(filehandle == FileHandleInvalid, false, "Recieve filehandle failed");
 
 	return true;
 }
@@ -84,11 +84,11 @@ Error ExternalTexture::_import(const Ref<RDTextureFormat> &p_format, const Ref<R
 
 void ExternalTexture::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("create", "format", "view"), &ExternalTexture::_create, DEFVAL(Array()));
-	ClassDB::bind_method(D_METHOD("send_fd", "path"), &ExternalTexture::send_fd);
+	ClassDB::bind_method(D_METHOD("send_filehandle", "path"), &ExternalTexture::send_filehandle);
 	ClassDB::bind_method(D_METHOD("copy_to", "texture"), &ExternalTexture::copy_to);
 	ClassDB::bind_method(D_METHOD("copy_from", "texture"), &ExternalTexture::copy_from);
 
-	ClassDB::bind_method(D_METHOD("get_fd"), &ExternalTexture::get_fd);
+	// ClassDB::bind_method(D_METHOD("get_filehandle"), &ExternalTexture::get_filehandle);
 	ClassDB::bind_method(D_METHOD("get_rid"), &ExternalTexture::get_rid);
 }
 

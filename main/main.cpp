@@ -3342,12 +3342,12 @@ bool Main::start() {
 	command_sync->bind_commands();
 
 	command_sync->connect();
-	command_sync->send_command("send_fd");
+	command_sync->send_command("send_filehandle");
 
 	// ExternalTexture
-	print_line("ExternalTexture: waiting for fd");
+	print_line("ExternalTexture: waiting for filehandle");
 	ext_texture = memnew(ExternalTexture);
-	bool success = ext_texture->recv_fd(fd_path); // WARNING: BLOCKING COMMAND
+	bool success = ext_texture->recv_filehandle(fd_path); // WARNING: BLOCKING COMMAND
 	if (!success) {
 		return false;
 	}

@@ -8,7 +8,7 @@
 class ExternalTexture : public RefCounted {
 	GDCLASS(ExternalTexture, RefCounted);
 
-    int fd = -1;
+    FileHandle filehandle = FileHandleInvalid;
     RID rid;
     RD::TextureView view;
     RD::TextureFormat format;
@@ -23,13 +23,13 @@ protected:
 public:
     Error create(const RD::TextureFormat &p_format, const RD::TextureView &p_view, const Vector<Vector<uint8_t>> &p_data = Vector<Vector<uint8_t>>());
 	Error import(const RD::TextureFormat &p_format, const RD::TextureView &p_view);
-	bool send_fd(const String &p_path);
-	bool recv_fd(const String &p_path);
+	bool send_filehandle(const String &p_path);
+	bool recv_filehandle(const String &p_path);
 
     Error copy_to(RID p_texture) { return _copy(p_texture, false); };
     Error copy_from(RID p_texture) { return _copy(p_texture, true); };
 
-	int get_fd() const { return fd; };
+	// FileHandle get_filehandle() const { return filehandle; };
 	RID get_rid() const { return rid; };
 
 	ExternalTexture();

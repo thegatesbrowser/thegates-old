@@ -1659,14 +1659,14 @@ void RenderingDeviceVulkan::_buffer_memory_barrier(VkBuffer buffer, uint64_t p_f
 /**** TEXTURE ****/
 /*****************/
 
-RID RenderingDeviceVulkan::external_texture_create(const TextureFormat &p_format, const TextureView &p_view, int *fd, const Vector<Vector<uint8_t>> &p_data) {
+RID RenderingDeviceVulkan::external_texture_create(const TextureFormat &p_format, const TextureView &p_view, FileHandle *p_filehandle, const Vector<Vector<uint8_t>> &p_data) {
 	_THREAD_SAFE_METHOD_
 
-	VkExternalMemoryHandleTypeFlagBits ext_handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT; // TODO: handle platform
+	VkExternalMemoryHandleTypeFlags ext_handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_X_BIT;
 	VkExternalMemoryImageCreateInfo ext_image_info = {
 		/*sType*/ VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
 		/*pNext*/ nullptr,
-		/*handleTypes*/ (VkExternalMemoryHandleTypeFlags)ext_handle_type
+		/*handleTypes*/ ext_handle_type
 	};
 	VkImageCreateInfo image_create_info;
 	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -1880,7 +1880,7 @@ RID RenderingDeviceVulkan::external_texture_create(const TextureFormat &p_format
 		export_alloc_info = {
 			/*sType*/ VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO,
 			/*pNext*/ nullptr,
-			/*handleTypes*/ (VkExternalMemoryHandleTypeFlags)ext_handle_type
+			/*handleTypes*/ ext_handle_type
 		};
 		VmaPoolCreateInfo pool_create_info;
 		pool_create_info.memoryTypeIndex = mem_type_index;
@@ -1916,15 +1916,14 @@ RID RenderingDeviceVulkan::external_texture_create(const TextureFormat &p_format
 
 	// Create file descriptor.
 
-	// TODO: handle platform
-	VkMemoryGetFdInfoKHR memory_get_info = {
-		/*sType*/ VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,
+	VkMemoryGetXInfoKHR memory_get_info = {
+		/*sType*/ VK_STRUCTURE_TYPE_MEMORY_GET_X_INFO_KHR,
 		/*pNext*/ nullptr,
 		/*memory*/ texture.allocation_info.deviceMemory,
-		/*handleType*/ ext_handle_type
+		/*handleType*/ (VkExternalMemoryHandleTypeFlagBits)ext_handle_type
 	};
-	err = vkGetMemoryFdKHR(device, &memory_get_info, fd);
-	ERR_FAIL_COND_V_MSG(err, RID(), "vkGetMemoryFdKHR failed with error " + itos(err) + ".");
+	err = vkGetMemoryXKHR(device, &memory_get_info, p_filehandle);
+	ERR_FAIL_COND_V_MSG(err, RID(), "vkGetMemoryXKHR failed with error " + itos(err) + ".");
 
 	// Set base layout based on usage priority.
 
@@ -2055,16 +2054,16 @@ RID RenderingDeviceVulkan::external_texture_create(const TextureFormat &p_format
 }
 
 
-RID RenderingDeviceVulkan::external_texture_import(const TextureFormat &p_format, const TextureView &p_view, int fd) {
+RID RenderingDeviceVulkan::external_texture_import(const TextureFormat &p_format, const TextureView &p_view, FileHandle p_filehandle) {
 	_THREAD_SAFE_METHOD_
 
 	Vector<Vector<uint8_t>> p_data = Vector<Vector<uint8_t>>();
 
-	VkExternalMemoryHandleTypeFlagBits ext_handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT; // TODO: handle platform
+	VkExternalMemoryHandleTypeFlags ext_handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_X_BIT;
 	VkExternalMemoryImageCreateInfo ext_image_info = {
 		/*sType*/ VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
 		/*pNext*/ nullptr,
-		/*handleTypes*/ (VkExternalMemoryHandleTypeFlags)ext_handle_type
+		/*handleTypes*/ ext_handle_type
 	};
 	VkImageCreateInfo image_create_info;
 	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -2277,10 +2276,10 @@ RID RenderingDeviceVulkan::external_texture_import(const TextureFormat &p_format
 		
 		// TODO: handle platform
 		import_memory_info = {
-			/*sType*/ VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
+			/*sType*/ VK_STRUCTURE_TYPE_IMPORT_MEMORY_X_INFO_KHR,
 			/*pNext*/ nullptr,
-			/*handleType*/ ext_handle_type,
-			/*fd*/ fd
+			/*handleType*/ (VkExternalMemoryHandleTypeFlagBits)ext_handle_type,
+			/*handle/fd*/ p_filehandle
 		};
 		VmaPoolCreateInfo pool_create_info;
 		pool_create_info.memoryTypeIndex = mem_type_index;

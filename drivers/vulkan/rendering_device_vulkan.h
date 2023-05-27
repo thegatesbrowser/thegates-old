@@ -167,7 +167,7 @@ class RenderingDeviceVulkan : public RenderingDevice {
 
 	// External texture
 	VkExportMemoryAllocateInfo export_alloc_info;
-	VkImportMemoryFdInfoKHR import_memory_info;
+	VkImportMemoryXInfoKHR import_memory_info;
 	VmaPool ext_image_pool = VK_NULL_HANDLE;
 
 	/*****************/
@@ -1076,8 +1076,8 @@ class RenderingDeviceVulkan : public RenderingDevice {
 	VkSampleCountFlagBits _ensure_supported_sample_count(TextureSamples p_requested_sample_count) const;
 
 public:
-	virtual RID external_texture_create(const TextureFormat &p_format, const TextureView &p_view, int *fd, const Vector<Vector<uint8_t>> &p_data = Vector<Vector<uint8_t>>());
-	virtual RID external_texture_import(const TextureFormat &p_format, const TextureView &p_view, int fd);
+	virtual RID external_texture_create(const TextureFormat &p_format, const TextureView &p_view, FileHandle *p_filehandle, const Vector<Vector<uint8_t>> &p_data = Vector<Vector<uint8_t>>());
+	virtual RID external_texture_import(const TextureFormat &p_format, const TextureView &p_view, FileHandle p_filehandle);
 
 	virtual RID texture_create(const TextureFormat &p_format, const TextureView &p_view, const Vector<Vector<uint8_t>> &p_data = Vector<Vector<uint8_t>>());
 	virtual RID texture_create_shared(const TextureView &p_view, RID p_with_texture);
