@@ -1,5 +1,9 @@
 #include "external_texture.h"
+
+#ifdef _WIN32
+#else
 #include "flingfd.h"
+#endif
 
 Error ExternalTexture::create(const RD::TextureFormat &p_format, const RD::TextureView &p_view, const Vector<Vector<uint8_t>> &p_data) {
 	view = p_view;
@@ -23,11 +27,18 @@ Error ExternalTexture::import(const RD::TextureFormat &p_format, const RD::Textu
 
 bool ExternalTexture::send_fd(const String &p_path) {
 	ERR_FAIL_COND_V_MSG(fd == -1, false, "Sending invalid fd. First create external texture");
+#ifdef _WIN32
+#else
 	return flingfd_simple_send(p_path.utf8().get_data(), fd);
+#endif
+	return false;
 }
 
 bool ExternalTexture::recv_fd(const String &p_path) {
+#ifdef _WIN32
+#else
 	fd = flingfd_simple_recv(p_path.utf8().get_data());
+#endif
 	ERR_FAIL_COND_V_MSG(fd == -1, false, "Recieved fd failed");
 
 	return true;

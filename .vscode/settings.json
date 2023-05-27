@@ -1,7 +1,9 @@
 {
     "files.exclude": {
         "**/*.o": true,
-        "**/*.a": true
+        "**/*.a": true,
+        "**/*.obj": true,
+        "**/*.lib": true
     },
     "files.associations": {
         "SCsub": "python",
@@ -52,8 +54,13 @@
         "variant": "cpp",
         "stop_token": "cpp",
         "typeinfo": "cpp",
-        "utility": "cpp"
+        "utility": "cpp",
+        "cassert": "cpp"
     },
     "esbonio.sphinx.confDir": "",
-    "C_Cpp.errorSquiggles": "disabled"
+    "C_Cpp.errorSquiggles": "disabled",
+    "terminal.integrated.env.windows": {
+        "PKG_CONFIG_PATH": "C:/Program Files (x86)/ZeroMQ/lib/pkgconfig"
+    },
+    "cmake.configureOnOpen": false
 }
