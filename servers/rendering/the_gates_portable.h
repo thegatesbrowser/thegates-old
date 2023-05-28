@@ -1,15 +1,14 @@
 #ifndef THE_GATES_PORTABLE_H
 #define THE_GATES_PORTABLE_H
 
+#ifdef _WIN32   // ===== definitions on windows ===== //
+
 #ifdef USE_VOLK
 #include <volk.h>
 #else
-#include <vulkan/vulkan.h>
+#include "Windows.h"
 #endif
 
-#ifdef _WIN32   // ===== definitions on windows ===== //
-
-// #include "Windows.h" // when not using volk?
 typedef HANDLE FileHandle;
 #define FileHandleInvalid nullptr
 
