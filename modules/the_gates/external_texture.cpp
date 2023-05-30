@@ -1,6 +1,10 @@
 #include "external_texture.h"
 
 #ifdef _WIN32
+#include "Windows.h"
+#include "zmq_context.h"
+#include "socket.hpp"
+#include "message.hpp"
 #else
 #include "flingfd.h"
 #endif
@@ -27,19 +31,63 @@ Error ExternalTexture::import(const RD::TextureFormat &p_format, const RD::Textu
 
 bool ExternalTexture::send_filehandle(const String &p_path) {
 	ERR_FAIL_COND_V_MSG(filehandle == FileHandleInvalid, false, "Sending invalid filehandle. First create external texture");
+
 #ifdef _WIN32
+	// Duplicate handle
+	PackedStringArray split = p_path.split("|");
+	ERR_FAIL_COND_V_MSG(split.size() != 2, false, "Invalid path. Should be 'ipc://path|targetProcessId'");
+	int targetProcessId = split[1].to_int();
+
+	HANDLE hTargetProcess = OpenProcess(PROCESS_DUP_HANDLE, FALSE, targetProcessId);
+	ERR_FAIL_COND_V_MSG(hTargetProcess == INVALID_HANDLE_VALUE, false, "Unable to OpenProcess from " + itos(targetProcessId));
+
+	HANDLE hDuplicateHandle;
+	bool success = DuplicateHandle(GetCurrentProcess(), (HANDLE)filehandle, hTargetProcess, &hDuplicateHandle, 0, FALSE, DUPLICATE_SAME_ACCESS);
+	ERR_FAIL_COND_V_MSG(!success, false, "Unable to DuplicateHandle. Error code: " + itos(GetLastError()));
+
+	printf("DuplicateHandle: %p\n", hDuplicateHandle);
+
+	// Send handle
+	zmqpp::socket sock(zmqpp::socket(ctx, zmqpp::socket_type::pair));
+	sock.connect(split[0].utf8().get_data());
+
+	filehandle = (FileHandle)hDuplicateHandle;
+	printf("filehandle: %p\n", filehandle);
+	zmqpp::message msg;
+	int64_t data = reinterpret_cast<int64_t>(filehandle);
+	msg << data;
+	success = sock.send(msg, true);
+	sock.close();
+
+	// Clean up
+	CloseHandle(hTargetProcess);
+	if (!success) {
+		CloseHandle(hDuplicateHandle);
+	}
+
+	return success;
 #else
 	return flingfd_simple_send(p_path.utf8().get_data(), filehandle);
 #endif
-	return false;
 }
 
 bool ExternalTexture::recv_filehandle(const String &p_path) {
 #ifdef _WIN32
+	zmqpp::socket sock(zmqpp::socket(ctx, zmqpp::socket_type::pair));
+	sock.bind(p_path.utf8().get_data());
+
+	size_t size = sizeof(FileHandle);
+	zmqpp::message msg;
+	sock.receive(msg, false); // WARNING: BLOCKING COMMAND
+	int64_t data;
+	msg >> data;
+	filehandle = reinterpret_cast<void*>(data);
+	sock.close();
 #else
 	filehandle = flingfd_simple_recv(p_path.utf8().get_data());
 #endif
 	ERR_FAIL_COND_V_MSG(filehandle == FileHandleInvalid, false, "Recieve filehandle failed");
+	printf("Received FileHandle: %p\n", filehandle);
 
 	return true;
 }
