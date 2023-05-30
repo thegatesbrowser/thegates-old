@@ -2228,6 +2228,11 @@ Error Main::setup2() {
 
 		// rendering_driver now held in static global String in main and initialized in setup()
 		Error err;
+#ifdef THE_GATES_SANDBOX
+		window_mode = DisplayServer::WindowMode::WINDOW_MODE_EXCLUSIVE_FULLSCREEN;
+		window_flags |= DisplayServer::WINDOW_FLAG_BORDERLESS_BIT;
+		window_flags |= DisplayServer::WINDOW_FLAG_RESIZE_DISABLED_BIT;
+#endif
 		display_server = DisplayServer::create(display_driver_idx, rendering_driver, window_mode, window_vsync_mode, window_flags, window_position, window_size, init_screen, err);
 		if (err != OK || display_server == nullptr) {
 			// We can't use this display server, try other ones as fallback.
