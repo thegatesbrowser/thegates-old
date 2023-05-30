@@ -29,7 +29,6 @@ public:
     Error copy_to(RID p_texture) { return _copy(p_texture, false); };
     Error copy_from(RID p_texture) { return _copy(p_texture, true); };
 
-	// FileHandle get_filehandle() const { return filehandle; };
 	RID get_rid() const { return rid; };
 
 	ExternalTexture();

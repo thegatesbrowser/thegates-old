@@ -136,7 +136,6 @@ void ExternalTexture::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("copy_to", "texture"), &ExternalTexture::copy_to);
 	ClassDB::bind_method(D_METHOD("copy_from", "texture"), &ExternalTexture::copy_from);
 
-	// ClassDB::bind_method(D_METHOD("get_filehandle"), &ExternalTexture::get_filehandle);
 	ClassDB::bind_method(D_METHOD("get_rid"), &ExternalTexture::get_rid);
 }
 
