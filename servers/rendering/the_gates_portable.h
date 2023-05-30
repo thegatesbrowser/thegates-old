@@ -3,20 +3,20 @@
 
 #ifdef _WIN32   // ===== definitions on windows ===== //
 
-#ifdef USE_VOLK
-#include <volk.h>
+#ifdef _WIN64
+    typedef long long LONG_PTR;
 #else
-#include "Windows.h"
+    typedef long LONG_PTR;
 #endif
 
-typedef HANDLE FileHandle;
-#define FileHandleInvalid nullptr
+typedef void* FileHandle; // HANDLE
+#define FileHandleInvalid ((FileHandle)(LONG_PTR)-1) // INVALID_HANDLE_VALUE
 
 #define vkGetMemoryXKHR vkGetMemoryWin32HandleKHR
 #define VkMemoryGetXInfoKHR VkMemoryGetWin32HandleInfoKHR
 #define VkImportMemoryXInfoKHR VkImportMemoryWin32HandleInfoKHR
 
-#define VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_X_BIT VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT
+#define VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_X_BIT VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT
 #define VK_STRUCTURE_TYPE_MEMORY_GET_X_INFO_KHR VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR
 #define VK_STRUCTURE_TYPE_EXPORT_MEMORY_X_INFO_KHR VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_KHR
 #define VK_STRUCTURE_TYPE_IMPORT_MEMORY_X_INFO_KHR VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR
