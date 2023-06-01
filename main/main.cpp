@@ -232,8 +232,6 @@ bool profile_gpu = false;
 
 // TheGates
 #ifdef THE_GATES_SANDBOX
-static String fd_path;
-
 static ExternalTexture	*ext_texture = nullptr;
 static CommandSync		*command_sync = nullptr;
 static InputSync		*input_sync = nullptr;
@@ -518,12 +516,6 @@ void Main::print_help(const char *p_binary) {
 #endif
 #endif
 	OS::get_singleton()->print("\n");
-
-#ifdef THE_GATES_SANDBOX
-	OS::get_singleton()->print("TheGates options:\n");
-	OS::get_singleton()->print("  --fd-path <path>                  External image fd path.\n");
-	OS::get_singleton()->print("\n");
-#endif
 }
 
 #ifdef TESTS_ENABLED
@@ -1477,17 +1469,6 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 				OS::get_singleton()->print("Missing <path> argument for --benchmark-file <path>.\n");
 				goto error;
 			}
-#ifdef THE_GATES_SANDBOX
-		} else if (I->get() == "--fd-path") {
-
-			if (I->next()) {
-				fd_path = I->next()->get();
-				N = I->next()->next();
-			} else {
-				OS::get_singleton()->print("Missing --fd-path argument, aborting.\n");
-				goto error;
-			}
-#endif
 		} else if (I->get() == "--" || I->get() == "++") {
 			adding_user_args = true;
 		} else {
@@ -3339,14 +3320,20 @@ bool Main::start() {
 	// CommandSync
 	command_sync = memnew(CommandSync);
 	command_sync->bind_commands();
-
 	command_sync->connect();
-	command_sync->send_command("send_filehandle");
+
+	Array arg;
+#ifdef _WIN32
+	arg.append(FILEHANDLE_PATH + "|" + itos(OS::get_process_id()));
+#else
+	arg.append(FILEHANDLE_PATH);
+#endif
+	command_sync->send_command("send_filehandle", arg);
 
 	// ExternalTexture
 	print_line("ExternalTexture: waiting for filehandle");
 	ext_texture = memnew(ExternalTexture);
-	bool success = ext_texture->recv_filehandle(fd_path); // WARNING: BLOCKING COMMAND
+	bool success = ext_texture->recv_filehandle(FILEHANDLE_PATH); // WARNING: BLOCKING COMMAND
 	if (!success) {
 		return false;
 	}

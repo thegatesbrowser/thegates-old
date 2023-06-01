@@ -45,14 +45,11 @@ bool ExternalTexture::send_filehandle(const String &p_path) {
 	bool success = DuplicateHandle(GetCurrentProcess(), (HANDLE)filehandle, hTargetProcess, &hDuplicateHandle, 0, FALSE, DUPLICATE_SAME_ACCESS);
 	ERR_FAIL_COND_V_MSG(!success, false, "Unable to DuplicateHandle. Error code: " + itos(GetLastError()));
 
-	printf("DuplicateHandle: %p\n", hDuplicateHandle);
-
 	// Send handle
 	zmqpp::socket sock(zmqpp::socket(ctx, zmqpp::socket_type::pair));
 	sock.connect(split[0].utf8().get_data());
 
 	filehandle = (FileHandle)hDuplicateHandle;
-	printf("filehandle: %p\n", filehandle);
 	zmqpp::message msg;
 	int64_t data = reinterpret_cast<int64_t>(filehandle);
 	msg << data;
@@ -84,10 +81,9 @@ bool ExternalTexture::recv_filehandle(const String &p_path) {
 	filehandle = reinterpret_cast<void*>(data);
 	sock.close();
 #else
-	filehandle = flingfd_simple_recv(p_path.utf8().get_data());
+	filehandle = flingfd_simple_recv(p_path.utf8().get_data()); // WARNING: BLOCKING COMMAND
 #endif
 	ERR_FAIL_COND_V_MSG(filehandle == FileHandleInvalid, false, "Recieve filehandle failed");
-	printf("Received FileHandle: %p\n", filehandle);
 
 	return true;
 }
