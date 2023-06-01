@@ -2029,21 +2029,6 @@ void GDScriptLanguage::add_global_constant(const StringName &p_variable, const V
 	_add_global(p_variable, p_value);
 }
 
-void GDScriptLanguage::remove_global_constant(const StringName &p_variable) {
-	ERR_FAIL_COND(!globals.has(p_variable));
-	// Remove from Vector
-	int id = globals[p_variable];
-	global_array.remove_at(id);
-	_global_array = global_array.ptrw();
-
-	// Remove from HashMap, update ids
-	globals.erase(p_variable);
-	for (KeyValue<StringName, int> &e : globals) {
-		if (e.value > id)
-			e.value -= 1;
-	}
-}
-
 void GDScriptLanguage::add_named_global_constant(const StringName &p_name, const Variant &p_value) {
 	named_globals[p_name] = p_value;
 }
