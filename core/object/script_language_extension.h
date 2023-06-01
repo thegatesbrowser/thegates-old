@@ -428,7 +428,6 @@ public:
 		p_code = ret;
 	}
 	EXBIND2(add_global_constant, const StringName &, const Variant &)
-	EXBIND1(remove_global_constant, const StringName &)
 	EXBIND2(add_named_global_constant, const StringName &, const Variant &)
 	EXBIND1(remove_named_global_constant, const StringName &)
 
