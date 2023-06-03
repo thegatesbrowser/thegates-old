@@ -3330,7 +3330,7 @@ bool Main::start() {
 
 	Array arg;
 #ifdef _WIN32
-	arg.append(FILEHANDLE_PATH + "|" + itos(OS::get_process_id()));
+	arg.append(FILEHANDLE_PATH + "|" + itos(OS::get_singleton()->get_process_id()));
 #else
 	arg.append(FILEHANDLE_PATH);
 #endif
