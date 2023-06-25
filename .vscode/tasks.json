@@ -24,33 +24,22 @@
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "build linux (template_debug)",
+            "label": "build (template_release)",
             "group": "build",
             "type": "shell",
             "command": "scons",
             "args": [
-              "-j", "$(nproc)", "platform=linuxbsd", "tools=no", "target=template_debug", "use_lto=yes"
+              "-j", "$(nproc)", "production=yes", "tools=no", "target=template_release", "use_lto=yes", "the_gates_sandbox=no"
             ],
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "build windows (template_release)",
+            "label": "build sandbox (template_debug)",
             "group": "build",
             "type": "shell",
             "command": "scons",
             "args": [
-              "-j", "$(nproc)", "platform=windows", "tools=no", "target=template_release", "use_lto=yes", "the_gates_sandbox=yes"
-            ],
-            "problemMatcher": "$msCompile"
-        },
-        {
-            "label": "build macOS (template_debug)",
-            "group": "build",
-            "type": "shell",
-            "command": "scons",
-            "args": [
-              "-j", "$(nproc)", "platform=macos", "osxcross_sdk=darwin21.4", "use_volk=yes",
-              "tools=no", "target=template_debug"
+              "-j", "$(nproc)", "production=yes", "tools=no", "target=template_debug", "use_lto=yes", "the_gates_sandbox=yes"
             ],
             "problemMatcher": "$msCompile"
         }
