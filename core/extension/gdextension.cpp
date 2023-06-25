@@ -512,6 +512,10 @@ void GDExtension::deinitialize_library(InitializationLevel p_level) {
 	initialization.deinitialize(initialization.userdata, GDExtensionInitializationLevel(p_level));
 }
 
+String GDExtension::_find_extension_library(const String &p_path, Ref<ConfigFile> p_config) {
+	return GDExtension::find_extension_library(p_path, p_config, [](String p_feature) { return OS::get_singleton()->has_feature(p_feature); });
+}
+
 void GDExtension::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("open_library", "path", "entry_symbol"), &GDExtension::open_library);
 	ClassDB::bind_method(D_METHOD("close_library"), &GDExtension::close_library);
@@ -519,6 +523,8 @@ void GDExtension::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("get_minimum_library_initialization_level"), &GDExtension::get_minimum_library_initialization_level);
 	ClassDB::bind_method(D_METHOD("initialize_library", "level"), &GDExtension::initialize_library);
+
+	ClassDB::bind_static_method("GDExtension", D_METHOD("find_extension_library", "path", "config"), &GDExtension::_find_extension_library);
 
 	BIND_ENUM_CONSTANT(INITIALIZATION_LEVEL_CORE);
 	BIND_ENUM_CONSTANT(INITIALIZATION_LEVEL_SERVERS);

@@ -66,6 +66,8 @@ class GDExtension : public Resource {
 protected:
 	static void _bind_methods();
 
+	static String _find_extension_library(const String &p_path, Ref<ConfigFile> p_config);
+
 public:
 	HashMap<String, String> class_icon_paths;
 
