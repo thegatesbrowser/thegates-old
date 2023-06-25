@@ -134,12 +134,45 @@ void GDExtensionManager::deinitialize_extensions(GDExtension::InitializationLeve
 	level = int32_t(p_level) - 1;
 }
 
-void GDExtensionManager::load_extensions() {
+String GDExtensionManager::change_libraries_path(const String &p_config_path, const String &p_libraries_dir) {
+	Ref<ConfigFile> config;
+	config.instantiate();
+
+	Error err = config->load(p_config_path);
+	ERR_FAIL_COND_V_MSG(err != OK, "", "Error loading GDExtension configuration file: " + p_config_path);
+
+	print_line("set_libraries_directory " + p_libraries_dir);
+
+	if (config->has_section("libraries")) {
+		List<String> libraries;
+		config->get_section_keys("libraries", &libraries);
+
+		for (const String &E : libraries) {
+			String library_path = config->get_value("libraries", E);
+			library_path = p_libraries_dir.path_join(library_path.get_file());
+			print_line("set_value " + E + " " + library_path);
+			config->set_value("libraries", E, library_path);
+		}
+	}
+
+	String new_path = p_config_path;
+	if (new_path.begins_with("res://")) {
+		new_path = new_path.replace_first("res", "user");
+		print_line(new_path);
+	}
+	err = config->save(new_path);
+	ERR_FAIL_COND_V_MSG(err != OK, "", "Cannot save config file to '" + new_path + "'.");
+
+	return new_path;
+}
+
+void GDExtensionManager::load_extensions(const String &p_libraries_dir) {
 	Ref<FileAccess> f = FileAccess::open(GDExtension::get_extension_list_config_file(), FileAccess::READ);
 	while (f.is_valid() && !f->eof_reached()) {
 		String s = f->get_line().strip_edges();
 		if (!s.is_empty()) {
-			LoadStatus err = load_extension(s);
+			String new_path = change_libraries_path(s, p_libraries_dir);
+			LoadStatus err = load_extension(new_path);
 			ERR_CONTINUE_MSG(err == LOAD_STATUS_FAILED, "Error loading extension: " + s);
 		}
 	}

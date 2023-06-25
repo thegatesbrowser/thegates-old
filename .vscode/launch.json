@@ -31,13 +31,12 @@
             "name": "Launch project in sandbox",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/bin/godot.linuxbsd.editor.dev.x86_64.llvm",
+            "program": "${workspaceFolder}/bin/godot.linuxbsd.editor.dev.sandbox.x86_64.llvm",
             "args": [
                 "--verbose",
-                "--path", "/home/nordup/projects/godot/the-gates-folder/Gates/GDQuestDemo",
-                "--resolution", "1920x1080",
-                "--print-fps",
-                "--fullscreen"
+                "--main-pack", "/home/nordup/projects/godot/the-gates-folder/ServerFiles/exports/rust/project.zip",
+                "--libraries", "/home/nordup/projects/godot/the-gates-folder/ServerFiles/exports/rust",
+                "--resolution", "1920x1080"
             ],
             "cwd": "${workspaceFolder}"
         }
