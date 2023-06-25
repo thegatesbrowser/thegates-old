@@ -31,9 +31,11 @@
 #ifndef REGISTER_CORE_TYPES_H
 #define REGISTER_CORE_TYPES_H
 
+#include "core/string/ustring.h"
+
 void register_core_types();
 void register_core_settings();
-void register_core_extensions();
+void register_core_extensions(const String &p_libraries_dir);
 void register_core_singletons();
 void unregister_core_types();
 void unregister_core_extensions();
