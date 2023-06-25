@@ -348,10 +348,10 @@ void register_core_singletons() {
 	Engine::get_singleton()->add_singleton(Engine::Singleton("WorkerThreadPool", worker_thread_pool));
 }
 
-void register_core_extensions(const String &p_libraries_dir) {
+void register_core_extensions(const String &p_libs_dir) {
 	// Hardcoded for now.
 	GDExtension::initialize_gdextensions();
-	gdextension_manager->load_extensions(p_libraries_dir);
+	gdextension_manager->load_extensions(p_libs_dir);
 	gdextension_manager->initialize_extensions(GDExtension::INITIALIZATION_LEVEL_CORE);
 	_is_core_extensions_registered = true;
 }

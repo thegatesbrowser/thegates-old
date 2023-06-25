@@ -236,7 +236,7 @@ static ExternalTexture	*ext_texture = nullptr;
 static CommandSync		*command_sync = nullptr;
 static InputSync		*input_sync = nullptr;
 #endif
-String libraries = "";
+String gdext_libs_dir = "";
 
 // Constants.
 
@@ -403,7 +403,7 @@ void Main::print_help(const char *p_binary) {
 	OS::get_singleton()->print("  --path <directory>                Path to a project (<directory> must contain a 'project.godot' file).\n");
 	OS::get_singleton()->print("  -u, --upwards                     Scan folders upwards for project.godot file.\n");
 	OS::get_singleton()->print("  --main-pack <file>                Path to a pack (.pck) file to load.\n");
-	OS::get_singleton()->print("  --libraries <directory>           Path to shared libraries to load.\n");
+	OS::get_singleton()->print("  --gdext-libs-dir <directory>      Path to GDExtension shared libraries to load.\n");
 	OS::get_singleton()->print("  --render-thread <mode>            Render thread mode ['unsafe', 'safe', 'separate'].\n");
 	OS::get_singleton()->print("  --remote-fs <address>             Remote filesystem (<host/IP>[:<port>] address).\n");
 	OS::get_singleton()->print("  --remote-fs-password <password>   Password for remote filesystem.\n");
@@ -1372,9 +1372,9 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 				goto error;
 			};
 
-		} else if (I->get() == "--libraries") {
+		} else if (I->get() == "--gdext-libs-dir") {
 			if (I->next()) {
-				libraries = I->next()->get();
+				gdext_libs_dir = I->next()->get();
 				N = I->next()->next();
 			} else {
 				OS::get_singleton()->print("Missing path to libraries directory.\n");
@@ -1548,7 +1548,7 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 	OS::get_singleton()->ensure_user_data_dir();
 
 	initialize_modules(MODULE_INITIALIZATION_LEVEL_CORE);
-	register_core_extensions(libraries); // core extensions must be registered after globals setup and before display
+	register_core_extensions(gdext_libs_dir); // core extensions must be registered after globals setup and before display
 
 	ResourceUID::get_singleton()->load_from_cache(); // load UUIDs from cache.
 

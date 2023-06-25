@@ -68,8 +68,8 @@ public:
 
 	static GDExtensionManager *get_singleton();
 
-	String change_libraries_path(const String &p_config_path, const String &p_libraries_dir);
-	void load_extensions(const String &p_libraries_dir);
+	String change_libraries_path(const String &p_config_path, const String &p_libs_dir);
+	void load_extensions(const String &p_libs_dir);
 
 	GDExtensionManager();
 };
