@@ -3579,7 +3579,7 @@ bool Main::iteration() {
 	// Render send
 	RID main_vp_rid = RS::get_singleton()->viewport_find_from_screen_attachment(DisplayServer::MAIN_WINDOW_ID);
 	RID main_vp_texture = RS::get_singleton()->viewport_get_texture(main_vp_rid);
-	RID viewport_texture_rid = RS::get_singleton()->texture_get_rd_texture_rid(main_vp_texture);
+	RID viewport_texture_rid = RS::get_singleton()->texture_get_rd_texture(main_vp_texture);
 	ext_texture->copy_from(viewport_texture_rid);
 
 	// Input sync
