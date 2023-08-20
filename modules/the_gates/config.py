@@ -19,6 +19,11 @@ def can_build(env, platform):
 def configure(env):
     if not env["arch"]: return
 
+    if env["platform"] == "windows":
+        pass
+    else:
+        env.Append(LINKFLAGS=["-lseccomp"])
+    
     if env.msvc:
         # Build libzmq https://www.youtube.com/watch?v=OiGf9T_TPa8
         # Fix linking mismatch https://stackoverflow.com/questions/28887001/lnk2038-mismatch-detected-for-runtimelibrary-value-mt-staticrelease-doesn
