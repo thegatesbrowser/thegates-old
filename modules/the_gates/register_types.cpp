@@ -5,6 +5,7 @@
 #include "input_sync.h"
 #include "command_sync.h"
 #include "command.h"
+#include "sandboxing.h"
 
 void initialize_the_gates_module(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
@@ -21,6 +22,7 @@ void initialize_the_gates_module(ModuleInitializationLevel p_level) {
 		ERR_PRINT("ZeroMQ initialization failure.");
 	}
 
+	GDREGISTER_CLASS(Sandboxing);
 	GDREGISTER_CLASS(InputSync);
 	GDREGISTER_CLASS(Command);
 	GDREGISTER_CLASS(CommandSync);

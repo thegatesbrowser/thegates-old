@@ -5,7 +5,11 @@
 #include "core/input/input.h"
 #include "thirdparty/zmqpp/socket.hpp"
 
+#ifdef _WIN32
 static const String INPUT_SYNC_ADDRESS("ipc://input_sync");
+#else
+static const String INPUT_SYNC_ADDRESS("ipc:///tmp/input_sync");
+#endif
 
 class InputSync : public RefCounted {
 	GDCLASS(InputSync, RefCounted);

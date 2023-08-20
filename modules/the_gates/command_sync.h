@@ -5,7 +5,11 @@
 #include "scene/main/node.h"
 #include "thirdparty/zmqpp/socket.hpp"
 
+#ifdef _WIN32
 static const String COMMAND_SYNC_ADDRESS("ipc://command_sync");
+#else
+static const String COMMAND_SYNC_ADDRESS("ipc:///tmp/command_sync");
+#endif
 
 class CommandSync : public Node {
 	GDCLASS(CommandSync, Node);
