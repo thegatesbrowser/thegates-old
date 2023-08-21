@@ -18,11 +18,6 @@ def can_build(env, platform):
 
 def configure(env):
     if not env["arch"]: return
-
-    if env["platform"] == "windows":
-        pass
-    else:
-        env.Append(LINKFLAGS=["-lseccomp"])
     
     if env.msvc:
         # Build libzmq https://www.youtube.com/watch?v=OiGf9T_TPa8
@@ -35,6 +30,13 @@ def configure(env):
         if os.system("pkg-config --exists libzmq"):
             print("Error: ZeroMQ librarie not found. Aborting.")
             sys.exit(255)
-        env.ParseConfig("pkg-config libzmq --cflags --libs --static")
-    
-    print("Linking ZeroMQ")
+        else:
+            env.ParseConfig("pkg-config libzmq --cflags --libs --static")
+            print("Linking ZeroMQ")
+
+        if os.system("pkg-config --exists libseccomp"):
+            print("Error: Seccomp librarie not found. Aborting.")
+            sys.exit(255)
+        else:
+            env.ParseConfig("pkg-config libseccomp --cflags --libs")
+            print("Linking Seccomp")
