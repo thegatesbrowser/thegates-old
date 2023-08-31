@@ -3377,12 +3377,14 @@ bool Main::start() {
 	input_sync = memnew(InputSync);
 	input_sync->connect();
 
+#ifndef _WIN32
 	// Sandboxing
 	err = Sandboxing::sandbox();
 	if (err != OK) {
 		return false;
 	}
-	print_line("Seccomp sandboxing succeeded");
+	print_line("Sandboxing succeeded");
+#endif
 #endif
 
 	return true;
