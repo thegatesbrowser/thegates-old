@@ -801,7 +801,7 @@ if selected_platform in platform_list:
     suffix += "." + env["target"]
     if env.dev_build:
         suffix += ".dev"
-    
+
     if env.the_gates_sandbox:
         suffix += ".sandbox"
 

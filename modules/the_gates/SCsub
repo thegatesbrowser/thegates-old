@@ -27,7 +27,7 @@ thirdparty_sources = [
     "socket.cpp",
     "z85.cpp",
     "zap_request.cpp",
-    "zmqpp.cpp"
+    "zmqpp.cpp",
 ]
 thirdparty_sources = [thirdparty_dir + file for file in thirdparty_sources]
 env_tg.Prepend(CPPPATH=[thirdparty_dir])

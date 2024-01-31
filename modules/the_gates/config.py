@@ -1,24 +1,27 @@
 import os
 import sys
 
+
 def can_build(env, platform):
-    if not env["arch"] or env.msvc: return True
-    
+    if not env["arch"] or env.msvc:
+        return True
+
     if env["platform"] == "windows":
         pkgconf_error = os.system("pkg-config --version > NUL")
     else:
         pkgconf_error = os.system("pkg-config --version > /dev/null")
-    
+
     if pkgconf_error:
         print("Error: pkg-config not found. Aborting.")
         return False
-    
+
     return True
 
 
 def configure(env):
-    if not env["arch"]: return
-    
+    if not env["arch"]:
+        return
+
     if env.msvc:
         # Build libzmq https://www.youtube.com/watch?v=OiGf9T_TPa8
         # Fix linking mismatch https://stackoverflow.com/questions/28887001/lnk2038-mismatch-detected-for-runtimelibrary-value-mt-staticrelease-doesn
