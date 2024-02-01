@@ -34,6 +34,7 @@
 #include "core/core_string_names.h"
 #include "core/io/resource_loader.h"
 #include "core/object/message_queue.h"
+#include "core/object/script_language.h"
 #include "core/string/print_string.h"
 #include "instance_placeholder.h"
 #include "scene/animation/tween.h"
@@ -199,6 +200,11 @@ void Node::_notification(int p_notification) {
 
 			if (data.owner) {
 				_clean_up_owner();
+			}
+
+			while (!data.owned.is_empty()) {
+				Node *n = data.owned.back()->get();
+				n->_clean_up_owner(); // This will change data.owned. So it's impossible to loop over the list in the usual manner.
 			}
 
 			if (data.parent) {
@@ -645,7 +651,8 @@ int Node::get_multiplayer_authority() const {
 bool Node::is_multiplayer_authority() const {
 	ERR_FAIL_COND_V(!is_inside_tree(), false);
 
-	return get_multiplayer()->get_unique_id() == data.multiplayer_authority;
+	Ref<MultiplayerAPI> api = get_multiplayer();
+	return api.is_valid() && (api->get_unique_id() == data.multiplayer_authority);
 }
 
 /***** RPC CONFIG ********/
@@ -673,7 +680,7 @@ const Variant Node::get_node_rpc_config() const {
 Error Node::_rpc_bind(const Variant **p_args, int p_argcount, Callable::CallError &r_error) {
 	if (p_argcount < 1) {
 		r_error.error = Callable::CallError::CALL_ERROR_TOO_FEW_ARGUMENTS;
-		r_error.argument = 1;
+		r_error.expected = 1;
 		return ERR_INVALID_PARAMETER;
 	}
 
@@ -695,7 +702,7 @@ Error Node::_rpc_bind(const Variant **p_args, int p_argcount, Callable::CallErro
 Error Node::_rpc_id_bind(const Variant **p_args, int p_argcount, Callable::CallError &r_error) {
 	if (p_argcount < 2) {
 		r_error.error = Callable::CallError::CALL_ERROR_TOO_FEW_ARGUMENTS;
-		r_error.argument = 2;
+		r_error.expected = 2;
 		return ERR_INVALID_PARAMETER;
 	}
 
@@ -724,7 +731,12 @@ Error Node::_rpc_id_bind(const Variant **p_args, int p_argcount, Callable::CallE
 
 Error Node::rpcp(int p_peer_id, const StringName &p_method, const Variant **p_arg, int p_argcount) {
 	ERR_FAIL_COND_V(!is_inside_tree(), ERR_UNCONFIGURED);
-	return get_multiplayer()->rpcp(this, p_peer_id, p_method, p_arg, p_argcount);
+
+	Ref<MultiplayerAPI> api = get_multiplayer();
+	if (api.is_null()) {
+		return ERR_UNCONFIGURED;
+	}
+	return api->rpcp(this, p_peer_id, p_method, p_arg, p_argcount);
 }
 
 Ref<MultiplayerAPI> Node::get_multiplayer() const {
@@ -961,7 +973,11 @@ void Node::set_process_priority(int p_priority) {
 
 	if (_is_any_processing()) {
 		_remove_from_process_thread_group();
-		data.process_priority = p_priority;
+	}
+
+	data.process_priority = p_priority;
+
+	if (_is_any_processing()) {
 		_add_to_process_thread_group();
 	}
 }
@@ -983,7 +999,11 @@ void Node::set_physics_process_priority(int p_priority) {
 
 	if (_is_any_processing()) {
 		_remove_from_process_thread_group();
-		data.physics_process_priority = p_priority;
+	}
+
+	data.physics_process_priority = p_priority;
+
+	if (_is_any_processing()) {
 		_add_to_process_thread_group();
 	}
 }
@@ -1139,7 +1159,6 @@ void Node::_set_name_nocheck(const StringName &p_name) {
 
 void Node::set_name(const String &p_name) {
 	ERR_FAIL_COND_MSG(data.inside_tree && !Thread::is_main_thread(), "Changing the name to nodes inside the SceneTree is only allowed from the main thread. Use `set_name.call_deferred(new_name)`.");
-	ERR_FAIL_COND_MSG(data.parent && data.parent->data.blocked > 0, "Parent node is busy setting up children, `set_name(new_name)` failed. Consider using `set_name.call_deferred(new_name)` instead.");
 	String name = p_name.validate_node_name();
 
 	ERR_FAIL_COND(name.is_empty());
@@ -1151,9 +1170,9 @@ void Node::set_name(const String &p_name) {
 	data.name = name;
 
 	if (data.parent) {
-		data.parent->data.children.erase(old_name);
 		data.parent->_validate_child_name(this, true);
-		data.parent->data.children.insert(data.name, this);
+		bool success = data.parent->data.children.replace_key(old_name, data.name);
+		ERR_FAIL_COND_MSG(!success, "Renaming child in hashtable failed, this is a bug.");
 	}
 
 	if (data.unique_name_in_owner && data.owner) {
@@ -1342,6 +1361,10 @@ void Node::_generate_serial_child_name(const Node *p_child, StringName &name) co
 	}
 }
 
+Node::InternalMode Node::get_internal_mode() const {
+	return data.internal_mode;
+}
+
 void Node::_add_child_nocheck(Node *p_child, const StringName &p_name, InternalMode p_internal_mode) {
 	//add a child node quickly, without name validation
 
@@ -1397,6 +1420,14 @@ void Node::add_child(Node *p_child, bool p_force_readable_name, InternalMode p_i
 	ERR_FAIL_COND_MSG(data.blocked > 0, "Parent node is busy setting up children, `add_child()` failed. Consider using `add_child.call_deferred(child)` instead.");
 
 	_validate_child_name(p_child, p_force_readable_name);
+
+#ifdef DEBUG_ENABLED
+	if (p_child->data.owner && !p_child->data.owner->is_ancestor_of(p_child)) {
+		// Owner of p_child should be ancestor of p_child.
+		WARN_PRINT(vformat("Adding '%s' as child to '%s' will make owner '%s' inconsistent. Consider unsetting the owner beforehand.", p_child->get_name(), get_name(), p_child->data.owner->get_name()));
+	}
+#endif // DEBUG_ENABLED
+
 	_add_child_nocheck(p_child, p_child->data.name, p_internal);
 }
 
@@ -1837,7 +1868,7 @@ void Node::_set_owner_nocheck(Node *p_owner) {
 }
 
 void Node::_release_unique_name_in_owner() {
-	ERR_FAIL_NULL(data.owner); // Sanity check.
+	ERR_FAIL_NULL(data.owner); // Safety check.
 	StringName key = StringName(UNIQUE_NODE_PREFIX + data.name.operator String());
 	Node **which = data.owner->data.owned_unique_nodes.getptr(key);
 	if (which == nullptr || *which != this) {
@@ -1847,12 +1878,12 @@ void Node::_release_unique_name_in_owner() {
 }
 
 void Node::_acquire_unique_name_in_owner() {
-	ERR_FAIL_NULL(data.owner); // Sanity check.
+	ERR_FAIL_NULL(data.owner); // Safety check.
 	StringName key = StringName(UNIQUE_NODE_PREFIX + data.name.operator String());
 	Node **which = data.owner->data.owned_unique_nodes.getptr(key);
 	if (which != nullptr && *which != this) {
 		String which_path = is_inside_tree() ? (*which)->get_path() : data.owner->get_path_to(*which);
-		WARN_PRINT(vformat(RTR("Setting node name '%s' to be unique within scene for '%s', but it's already claimed by '%s'.\n'%s' is no longer set as having a unique name."),
+		WARN_PRINT(vformat("Setting node name '%s' to be unique within scene for '%s', but it's already claimed by '%s'.\n'%s' is no longer set as having a unique name.",
 				get_name(), is_inside_tree() ? get_path() : data.owner->get_path_to(this), which_path, which_path));
 		data.unique_name_in_owner = false;
 		return;
@@ -1920,7 +1951,7 @@ Node *Node::get_owner() const {
 }
 
 void Node::_clean_up_owner() {
-	ERR_FAIL_NULL(data.owner); // Sanity check.
+	ERR_FAIL_NULL(data.owner); // Safety check.
 
 	if (data.unique_name_in_owner) {
 		_release_unique_name_in_owner();
@@ -2147,30 +2178,40 @@ int Node::get_persistent_group_count() const {
 	return count;
 }
 
-void Node::_print_tree_pretty(const String &prefix, const bool last) {
-	String new_prefix = last ? String::utf8(" ┖╴") : String::utf8(" ┠╴");
-	print_line(prefix + new_prefix + String(get_name()));
-	_update_children_cache();
-	for (uint32_t i = 0; i < data.children_cache.size(); i++) {
-		new_prefix = last ? String::utf8("   ") : String::utf8(" ┃ ");
-		data.children_cache[i]->_print_tree_pretty(prefix + new_prefix, i == data.children_cache.size() - 1);
-	}
-}
-
 void Node::print_tree_pretty() {
-	_print_tree_pretty("", true);
+	print_line(_get_tree_string_pretty("", true));
 }
 
 void Node::print_tree() {
-	_print_tree(this);
+	print_line(_get_tree_string(this));
 }
 
-void Node::_print_tree(const Node *p_node) {
-	print_line(String(p_node->get_path_to(this)));
+String Node::_get_tree_string_pretty(const String &p_prefix, bool p_last) {
+	String new_prefix = p_last ? String::utf8(" ┖╴") : String::utf8(" ┠╴");
 	_update_children_cache();
+	String return_tree = p_prefix + new_prefix + String(get_name()) + "\n";
 	for (uint32_t i = 0; i < data.children_cache.size(); i++) {
-		data.children_cache[i]->_print_tree(p_node);
+		new_prefix = p_last ? String::utf8("   ") : String::utf8(" ┃ ");
+		return_tree += data.children_cache[i]->_get_tree_string_pretty(p_prefix + new_prefix, i == data.children_cache.size() - 1);
 	}
+	return return_tree;
+}
+
+String Node::get_tree_string_pretty() {
+	return _get_tree_string_pretty("", true);
+}
+
+String Node::_get_tree_string(const Node *p_node) {
+	_update_children_cache();
+	String return_tree = String(p_node->get_path_to(this)) + "\n";
+	for (uint32_t i = 0; i < data.children_cache.size(); i++) {
+		return_tree += data.children_cache[i]->_get_tree_string(p_node);
+	}
+	return return_tree;
+}
+
+String Node::get_tree_string() {
+	return _get_tree_string(this);
 }
 
 void Node::_propagate_reverse_notification(int p_notification) {
@@ -2713,9 +2754,15 @@ void Node::_duplicate_signals(const Node *p_original, Node *p_copy) const {
 					copytarget = p_copy->get_node(ptarget);
 				}
 
-				if (copy && copytarget) {
-					const Callable copy_callable = Callable(copytarget, E.callable.get_method());
+				if (copy && copytarget && E.callable.get_method() != StringName()) {
+					Callable copy_callable = Callable(copytarget, E.callable.get_method());
 					if (!copy->is_connected(E.signal.get_name(), copy_callable)) {
+						int arg_count = E.callable.get_bound_arguments_count();
+						if (arg_count > 0) {
+							copy_callable = copy_callable.bindv(E.callable.get_bound_arguments());
+						} else if (arg_count < 0) {
+							copy_callable = copy_callable.unbind(-arg_count);
+						}
 						copy->connect(E.signal.get_name(), copy_callable, E.flags);
 					}
 				}
@@ -3138,7 +3185,7 @@ void Node::unhandled_key_input(const Ref<InputEvent> &p_key_event) {
 Variant Node::_call_deferred_thread_group_bind(const Variant **p_args, int p_argcount, Callable::CallError &r_error) {
 	if (p_argcount < 1) {
 		r_error.error = Callable::CallError::CALL_ERROR_TOO_FEW_ARGUMENTS;
-		r_error.argument = 0;
+		r_error.expected = 1;
 		return Variant();
 	}
 
@@ -3161,7 +3208,7 @@ Variant Node::_call_deferred_thread_group_bind(const Variant **p_args, int p_arg
 Variant Node::_call_thread_safe_bind(const Variant **p_args, int p_argcount, Callable::CallError &r_error) {
 	if (p_argcount < 1) {
 		r_error.error = Callable::CallError::CALL_ERROR_TOO_FEW_ARGUMENTS;
-		r_error.argument = 0;
+		r_error.expected = 1;
 		return Variant();
 	}
 
@@ -3263,6 +3310,8 @@ void Node::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_index", "include_internal"), &Node::get_index, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("print_tree"), &Node::print_tree);
 	ClassDB::bind_method(D_METHOD("print_tree_pretty"), &Node::print_tree_pretty);
+	ClassDB::bind_method(D_METHOD("get_tree_string"), &Node::get_tree_string);
+	ClassDB::bind_method(D_METHOD("get_tree_string_pretty"), &Node::get_tree_string_pretty);
 	ClassDB::bind_method(D_METHOD("set_scene_file_path", "scene_file_path"), &Node::set_scene_file_path);
 	ClassDB::bind_method(D_METHOD("get_scene_file_path"), &Node::get_scene_file_path);
 	ClassDB::bind_method(D_METHOD("propagate_notification", "what"), &Node::propagate_notification);
@@ -3406,7 +3455,6 @@ void Node::_bind_methods() {
 	BIND_CONSTANT(NOTIFICATION_POST_ENTER_TREE);
 	BIND_CONSTANT(NOTIFICATION_DISABLED);
 	BIND_CONSTANT(NOTIFICATION_ENABLED);
-	BIND_CONSTANT(NOTIFICATION_NODE_RECACHE_REQUESTED);
 
 	BIND_CONSTANT(NOTIFICATION_EDITOR_PRE_SAVE);
 	BIND_CONSTANT(NOTIFICATION_EDITOR_POST_SAVE);

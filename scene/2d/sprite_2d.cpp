@@ -30,7 +30,6 @@
 
 #include "sprite_2d.h"
 
-#include "core/core_string_names.h"
 #include "scene/main/window.h"
 #include "scene/scene_string_names.h"
 
@@ -137,13 +136,13 @@ void Sprite2D::set_texture(const Ref<Texture2D> &p_texture) {
 	}
 
 	if (texture.is_valid()) {
-		texture->disconnect(CoreStringNames::get_singleton()->changed, callable_mp(this, &Sprite2D::_texture_changed));
+		texture->disconnect_changed(callable_mp(this, &Sprite2D::_texture_changed));
 	}
 
 	texture = p_texture;
 
 	if (texture.is_valid()) {
-		texture->connect(CoreStringNames::get_singleton()->changed, callable_mp(this, &Sprite2D::_texture_changed));
+		texture->connect_changed(callable_mp(this, &Sprite2D::_texture_changed));
 	}
 
 	queue_redraw();
@@ -262,6 +261,9 @@ Vector2i Sprite2D::get_frame_coords() const {
 void Sprite2D::set_vframes(int p_amount) {
 	ERR_FAIL_COND_MSG(p_amount < 1, "Amount of vframes cannot be smaller than 1.");
 	vframes = p_amount;
+	if (frame >= vframes * hframes) {
+		frame = 0;
+	}
 	queue_redraw();
 	item_rect_changed();
 	notify_property_list_changed();
@@ -273,7 +275,21 @@ int Sprite2D::get_vframes() const {
 
 void Sprite2D::set_hframes(int p_amount) {
 	ERR_FAIL_COND_MSG(p_amount < 1, "Amount of hframes cannot be smaller than 1.");
+	if (vframes > 1) {
+		// Adjust the frame to fit new sheet dimensions.
+		int original_column = frame % hframes;
+		if (original_column >= p_amount) {
+			// Frame's column was dropped, reset.
+			frame = 0;
+		} else {
+			int original_row = frame / hframes;
+			frame = original_row * p_amount + original_column;
+		}
+	}
 	hframes = p_amount;
+	if (frame >= vframes * hframes) {
+		frame = 0;
+	}
 	queue_redraw();
 	item_rect_changed();
 	notify_property_list_changed();

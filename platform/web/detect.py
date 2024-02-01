@@ -30,6 +30,9 @@ def get_opts():
 
     return [
         ("initial_memory", "Initial WASM memory (in MiB)", 32),
+        # Matches default values from before Emscripten 3.1.27. New defaults are too low for Godot.
+        ("stack_size", "WASM stack size (in KiB)", 5120),
+        ("default_pthread_stack_size", "WASM pthread default stack size (in KiB)", 2048),
         BoolVariable("use_assertions", "Use Emscripten runtime assertions", False),
         BoolVariable("use_ubsan", "Use Emscripten undefined behavior sanitizer (UBSAN)", False),
         BoolVariable("use_asan", "Use Emscripten address sanitizer (ASAN)", False),
@@ -41,6 +44,11 @@ def get_opts():
             "dlink_enabled", "Enable WebAssembly dynamic linking (GDExtension support). Produces bigger binaries", False
         ),
         BoolVariable("use_closure_compiler", "Use closure compiler to minimize JavaScript code", False),
+        BoolVariable(
+            "proxy_to_pthread",
+            "Use Emscripten PROXY_TO_PTHREAD option to run the main application code to a separate thread",
+            False,
+        ),
     ]
 
 
@@ -60,6 +68,8 @@ def get_flags():
         ("target", "template_debug"),
         ("builtin_pcre2_with_jit", False),
         ("vulkan", False),
+        # Embree is heavy and requires too much memory (GH-70621).
+        ("module_raycast_enabled", False),
         # Use -Os to prioritize optimizing for reduced file size. This is
         # particularly valuable for the web platform because it directly
         # decreases download time.
@@ -97,12 +107,9 @@ def configure(env: "Environment"):
     if env["use_assertions"]:
         env.Append(LINKFLAGS=["-s", "ASSERTIONS=1"])
 
-    if env.editor_build:
-        if env["initial_memory"] < 64:
-            print('Note: Forcing "initial_memory=64" as it is required for the web editor.')
-            env["initial_memory"] = 64
-    else:
-        env.Append(CPPFLAGS=["-fno-exceptions"])
+    if env.editor_build and env["initial_memory"] < 64:
+        print('Note: Forcing "initial_memory=64" as it is required for the web editor.')
+        env["initial_memory"] = 64
 
     env.Append(LINKFLAGS=["-s", "INITIAL_MEMORY=%sMB" % env["initial_memory"]])
 
@@ -158,7 +165,7 @@ def configure(env: "Environment"):
     env.AddMethod(create_template_zip, "CreateTemplateZip")
 
     # Closure compiler extern and support for ecmascript specs (const, let, etc).
-    env["ENV"]["EMCC_CLOSURE_ARGS"] = "--language_in ECMASCRIPT6"
+    env["ENV"]["EMCC_CLOSURE_ARGS"] = "--language_in ECMASCRIPT_2020"
 
     env["CC"] = "emcc"
     env["CXX"] = "em++"
@@ -182,6 +189,10 @@ def configure(env: "Environment"):
     env["LIBPREFIXES"] = ["$LIBPREFIX"]
     env["LIBSUFFIXES"] = ["$LIBSUFFIX"]
 
+    # Get version info for checks below.
+    cc_version = get_compiler_version(env)
+    cc_semver = (cc_version["major"], cc_version["minor"], cc_version["patch"])
+
     env.Prepend(CPPPATH=["#platform/web"])
     env.Append(CPPDEFINES=["WEB_ENABLED", "UNIX_ENABLED"])
 
@@ -195,23 +206,46 @@ def configure(env: "Environment"):
     if env["javascript_eval"]:
         env.Append(CPPDEFINES=["JAVASCRIPT_EVAL_ENABLED"])
 
+    stack_size_opt = "STACK_SIZE" if cc_semver >= (3, 1, 25) else "TOTAL_STACK"
+    env.Append(LINKFLAGS=["-s", "%s=%sKB" % (stack_size_opt, env["stack_size"])])
+
     # Thread support (via SharedArrayBuffer).
     env.Append(CPPDEFINES=["PTHREAD_NO_RENAME"])
     env.Append(CCFLAGS=["-s", "USE_PTHREADS=1"])
     env.Append(LINKFLAGS=["-s", "USE_PTHREADS=1"])
+    env.Append(LINKFLAGS=["-s", "DEFAULT_PTHREAD_STACK_SIZE=%sKB" % env["default_pthread_stack_size"]])
     env.Append(LINKFLAGS=["-s", "PTHREAD_POOL_SIZE=8"])
     env.Append(LINKFLAGS=["-s", "WASM_MEM_MAX=2048MB"])
 
+    if env["lto"] != "none":
+        # Workaround https://github.com/emscripten-core/emscripten/issues/19781.
+        if cc_semver >= (3, 1, 42) and cc_semver < (3, 1, 46):
+            env.Append(LINKFLAGS=["-Wl,-u,scalbnf"])
+
     if env["dlink_enabled"]:
-        cc_version = get_compiler_version(env)
-        cc_semver = (int(cc_version["major"]), int(cc_version["minor"]), int(cc_version["patch"]))
+        if env["proxy_to_pthread"]:
+            print("GDExtension support requires proxy_to_pthread=no, disabling")
+            env["proxy_to_pthread"] = False
+
         if cc_semver < (3, 1, 14):
             print("GDExtension support requires emscripten >= 3.1.14, detected: %s.%s.%s" % cc_semver)
             sys.exit(255)
 
         env.Append(CCFLAGS=["-s", "SIDE_MODULE=2"])
         env.Append(LINKFLAGS=["-s", "SIDE_MODULE=2"])
+        env.Append(CCFLAGS=["-fvisibility=hidden"])
+        env.Append(LINKFLAGS=["-fvisibility=hidden"])
         env.extra_suffix = ".dlink" + env.extra_suffix
+
+    # Run the main application in a web worker
+    if env["proxy_to_pthread"]:
+        env.Append(LINKFLAGS=["-s", "PROXY_TO_PTHREAD=1"])
+        env.Append(CPPDEFINES=["PROXY_TO_PTHREAD_ENABLED"])
+        env.Append(LINKFLAGS=["-s", "EXPORTED_RUNTIME_METHODS=['_emscripten_proxy_main']"])
+        # https://github.com/emscripten-core/emscripten/issues/18034#issuecomment-1277561925
+        env.Append(LINKFLAGS=["-s", "TEXTDECODER=0"])
+        # BigInt support to pass object pointers between contexts
+        env.Append(LINKFLAGS=["-s", "WASM_BIGINT"])
 
     # Reduce code size by generating less support code (e.g. skip NodeJS support).
     env.Append(LINKFLAGS=["-s", "ENVIRONMENT=web,worker"])

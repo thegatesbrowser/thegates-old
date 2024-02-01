@@ -4,7 +4,7 @@
 		A server interface for low-level 3D navigation access.
 	</brief_description>
 	<description>
-		NavigationServer2D is the server that handles navigation maps, regions and agents. It does not handle A* navigation from [AStar3D].
+		NavigationServer3D is the server that handles navigation maps, regions and agents. It does not handle A* navigation from [AStar3D].
 		Maps are made up of regions, which are made of navigation meshes. Together, they define the navigable areas in the 3D world.
 		[b]Note:[/b] Most [NavigationServer3D] changes take effect after the next physics frame and not immediately. This includes all changes made to maps, regions or agents by navigation-related nodes in the scene tree or made through scripts.
 		For two regions to be connected to each other, they must share a similar edge. An edge is considered connected to another if both of its two vertices are at a distance less than [code]edge_connection_margin[/code] to the respective other edge's vertex.
@@ -73,7 +73,7 @@
 			<param index="0" name="agent" type="RID" />
 			<param index="1" name="enabled" type="bool" />
 			<description>
-				If [param enabled] the provided [param agent] calculates avoidance.
+				If [param enabled] is [code]true[/code], the provided [param agent] calculates avoidance.
 			</description>
 		</method>
 		<method name="agent_set_avoidance_layers">
@@ -187,7 +187,7 @@
 			<param index="1" name="enabled" type="bool" />
 			<description>
 				Sets if the agent uses the 2D avoidance or the 3D avoidance while avoidance is enabled.
-				If [code]true[/code] the agent calculates avoidance velocities in 3D for the xyz-axis, e.g. for games that take place in air, unterwater or space. The 3D using agent only avoids other 3D avoidance using agent's. The 3D using agent only reacts to radius based avoidance obstacles. The 3D using agent ignores any vertices based obstacles. The 3D using agent only avoids other 3D using agent's.
+				If [code]true[/code] the agent calculates avoidance velocities in 3D for the xyz-axis, e.g. for games that take place in air, underwater or space. The 3D using agent only avoids other 3D avoidance using agent's. The 3D using agent only reacts to radius based avoidance obstacles. The 3D using agent ignores any vertices based obstacles. The 3D using agent only avoids other 3D using agent's.
 				If [code]false[/code] the agent calculates avoidance velocities in 2D along the xz-axis ignoring the y-axis. The 2D using agent only avoids other 2D avoidance using agent's. The 2D using agent reacts to radius avoidance obstacles. The 2D using agent reacts to vertices based avoidance obstacles. The 2D using agent only avoids other 2D using agent's. 2D using agents will ignore other 2D using agents or obstacles that are below their current position or above their current position including the agents height in 2D avoidance.
 			</description>
 		</method>
@@ -214,6 +214,15 @@
 			<param index="2" name="callback" type="Callable" default="Callable()" />
 			<description>
 				Bakes the provided [param navigation_mesh] with the data from the provided [param source_geometry_data]. After the process is finished the optional [param callback] will be called.
+			</description>
+		</method>
+		<method name="bake_from_source_geometry_data_async">
+			<return type="void" />
+			<param index="0" name="navigation_mesh" type="NavigationMesh" />
+			<param index="1" name="source_geometry_data" type="NavigationMeshSourceGeometryData3D" />
+			<param index="2" name="callback" type="Callable" default="Callable()" />
+			<description>
+				Bakes the provided [param navigation_mesh] with the data from the provided [param source_geometry_data] as an async task running on a background thread. After the process is finished the optional [param callback] will be called.
 			</description>
 		</method>
 		<method name="free_rid">
@@ -246,6 +255,13 @@
 			<return type="RID" />
 			<description>
 				Create a new link between two positions on a map.
+			</description>
+		</method>
+		<method name="link_get_enabled" qualifiers="const">
+			<return type="bool" />
+			<param index="0" name="link" type="RID" />
+			<description>
+				Returns [code]true[/code] if the specified [param link] is enabled.
 			</description>
 		</method>
 		<method name="link_get_end_position" qualifiers="const">
@@ -310,6 +326,14 @@
 			<param index="1" name="bidirectional" type="bool" />
 			<description>
 				Sets whether this [param link] can be travelled in both directions.
+			</description>
+		</method>
+		<method name="link_set_enabled">
+			<return type="void" />
+			<param index="0" name="link" type="RID" />
+			<param index="1" name="enabled" type="bool" />
+			<description>
+				If [param enabled] is [code]true[/code], the specified [param link] will contribute to its current navigation map.
 			</description>
 		</method>
 		<method name="link_set_end_position">
@@ -380,7 +404,7 @@
 			<description>
 				This function immediately forces synchronization of the specified navigation [param map] [RID]. By default navigation maps are only synchronized at the end of each physics frame. This function can be used to immediately (re)calculate all the navigation meshes and region connections of the navigation map. This makes it possible to query a navigation path for a changed map immediately and in the same frame (multiple times if needed).
 				Due to technical restrictions the current NavigationServer command queue will be flushed. This means all already queued update commands for this physics frame will be executed, even those intended for other maps, regions and agents not part of the specified map. The expensive computation of the navigation meshes and region connections of a map will only be done for the specified map. Other maps will receive the normal synchronization at the end of the physics frame. Should the specified map receive changes after the forced update it will update again as well when the other maps receive their update.
-				Avoidance processing and dispatch of the [code]safe_velocity[/code] signals is untouched by this function and continues to happen for all maps and agents at the end of the physics frame.
+				Avoidance processing and dispatch of the [code]safe_velocity[/code] signals is unaffected by this function and continues to happen for all maps and agents at the end of the physics frame.
 				[b]Note:[/b] With great power comes great responsibility. This function should only be used by users that really know what they are doing and have a good reason for it. Forcing an immediate update of a navigation map requires locking the NavigationServer and flushing the entire NavigationServer command queue. Not only can this severely impact the performance of a game but it can also introduce bugs if used inappropriately without much foresight.
 			</description>
 		</method>
@@ -559,7 +583,7 @@
 			<param index="0" name="map" type="RID" />
 			<param index="1" name="enabled" type="bool" />
 			<description>
-				Set the navigation [param map] edge connection use. If [param enabled] the navigation map allows navigation regions to use edge connections to connect with other navigation regions within proximity of the navigation map edge connection margin.
+				Set the navigation [param map] edge connection use. If [param enabled] is [code]true[/code], the navigation map allows navigation regions to use edge connections to connect with other navigation regions within proximity of the navigation map edge connection margin.
 			</description>
 		</method>
 		<method name="obstacle_create">
@@ -601,7 +625,7 @@
 			<param index="0" name="obstacle" type="RID" />
 			<param index="1" name="enabled" type="bool" />
 			<description>
-				If [param enabled] the provided [param obstacle] affects avoidance using agents.
+				If [param enabled] is [code]true[/code], the provided [param obstacle] affects avoidance using agents.
 			</description>
 		</method>
 		<method name="obstacle_set_avoidance_layers">
@@ -734,6 +758,13 @@
 				Returns how many connections this [param region] has with other regions in the map.
 			</description>
 		</method>
+		<method name="region_get_enabled" qualifiers="const">
+			<return type="bool" />
+			<param index="0" name="region" type="RID" />
+			<description>
+				Returns [code]true[/code] if the specified [param region] is enabled.
+			</description>
+		</method>
 		<method name="region_get_enter_cost" qualifiers="const">
 			<return type="float" />
 			<param index="0" name="region" type="RID" />
@@ -784,6 +815,14 @@
 				Returns [code]true[/code] if the provided [param point] in world space is currently owned by the provided navigation [param region]. Owned in this context means that one of the region's navigation mesh polygon faces has a possible position at the closest distance to this point compared to all other navigation meshes from other navigation regions that are also registered on the navigation map of the provided region.
 				If multiple navigation meshes have positions at equal distance the navigation region whose polygons are processed first wins the ownership. Polygons are processed in the same order that navigation regions were registered on the NavigationServer.
 				[b]Note:[/b] If navigation meshes from different navigation regions overlap (which should be avoided in general) the result might not be what is expected.
+			</description>
+		</method>
+		<method name="region_set_enabled">
+			<return type="void" />
+			<param index="0" name="region" type="RID" />
+			<param index="1" name="enabled" type="bool" />
+			<description>
+				If [param enabled] is [code]true[/code], the specified [param region] will contribute to its current navigation map.
 			</description>
 		</method>
 		<method name="region_set_enter_cost">
@@ -847,7 +886,7 @@
 			<param index="0" name="region" type="RID" />
 			<param index="1" name="enabled" type="bool" />
 			<description>
-				If [param enabled] the navigation [param region] will use edge connections to connect with other navigation regions within proximity of the navigation map edge connection margin.
+				If [param enabled] is [code]true[/code], the navigation [param region] will use edge connections to connect with other navigation regions within proximity of the navigation map edge connection margin.
 			</description>
 		</method>
 		<method name="set_active">

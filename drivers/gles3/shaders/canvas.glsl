@@ -199,6 +199,10 @@ void main() {
 #ifdef USE_POINT_SIZE
 	float point_size = 1.0;
 #endif
+
+#ifdef USE_WORLD_VERTEX_COORDS
+	vertex = (model_matrix * vec4(vertex, 0.0, 1.0)).xy;
+#endif
 	{
 #CODE : VERTEX
 	}
@@ -207,7 +211,7 @@ void main() {
 	pixel_size_interp = abs(read_draw_data_dst_rect.zw) * vertex_base;
 #endif
 
-#if !defined(SKIP_TRANSFORM_USED)
+#if !defined(SKIP_TRANSFORM_USED) && !defined(USE_WORLD_VERTEX_COORDS)
 	vertex = (model_matrix * vec4(vertex, 0.0, 1.0)).xy;
 #endif
 
@@ -583,6 +587,9 @@ void main() {
 
 	if (normal_used || (using_light && bool(read_draw_data_flags & FLAGS_DEFAULT_NORMAL_MAP_USED))) {
 		normal.xy = texture(normal_texture, uv).xy * vec2(2.0, -2.0) - vec2(1.0, -1.0);
+		if (bool(read_draw_data_flags & FLAGS_TRANSPOSE_RECT)) {
+			normal.xy = normal.yx;
+		}
 		if (bool(read_draw_data_flags & FLAGS_FLIP_H)) {
 			normal.x = -normal.x;
 		}

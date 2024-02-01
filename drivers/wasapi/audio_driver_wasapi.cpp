@@ -555,14 +555,12 @@ Error AudioDriverWASAPI::finish_input_device() {
 Error AudioDriverWASAPI::init() {
 	mix_rate = _get_configured_mix_rate();
 
-	target_latency_ms = GLOBAL_GET("audio/driver/output_latency");
-
-	Error err = init_output_device();
-	if (err != OK) {
-		ERR_PRINT("WASAPI: init_output_device error");
-	}
+	target_latency_ms = Engine::get_singleton()->get_audio_output_latency();
 
 	exit_thread.clear();
+
+	Error err = init_output_device();
+	ERR_FAIL_COND_V_MSG(err != OK, err, "WASAPI: init_output_device error.");
 
 	thread.start(thread_func, this);
 
@@ -706,7 +704,7 @@ void AudioDriverWASAPI::write_sample(WORD format_tag, int bits_per_sample, BYTE 
 }
 
 void AudioDriverWASAPI::thread_func(void *p_udata) {
-	CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+	CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
 	AudioDriverWASAPI *ad = static_cast<AudioDriverWASAPI *>(p_udata);
 	uint32_t avail_frames = 0;

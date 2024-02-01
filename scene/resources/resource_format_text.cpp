@@ -34,6 +34,7 @@
 #include "core/io/dir_access.h"
 #include "core/io/missing_resource.h"
 #include "core/io/resource_format_binary.h"
+#include "core/object/script_language.h"
 #include "core/version.h"
 
 // Version 2: changed names for Basis, AABB, Vectors, etc.
@@ -576,6 +577,8 @@ Error ResourceLoaderText::load() {
 		if (do_assign) {
 			if (cache_mode != ResourceFormatLoader::CACHE_MODE_IGNORE) {
 				res->set_path(path, cache_mode == ResourceFormatLoader::CACHE_MODE_REPLACE);
+			} else if (!path.is_resource_file()) {
+				res->set_path_cache(path);
 			}
 			res->set_scene_unique_id(id);
 		}
@@ -1388,6 +1391,8 @@ Error ResourceLoaderText::save_as_binary(const String &p_path) {
 	wf->store_buffer(data.ptr(), data.size());
 	{
 		Ref<DirAccess> dar = DirAccess::open(temp_file.get_base_dir());
+		ERR_FAIL_COND_V(dar.is_null(), FAILED);
+
 		dar->remove(temp_file);
 	}
 
@@ -1786,8 +1791,8 @@ Error ResourceFormatLoaderText::rename_dependencies(const String &p_path, const 
 		err = loader.rename_dependencies(f, p_path, p_map);
 	}
 
-	if (err == OK) {
-		Ref<DirAccess> da = DirAccess::create(DirAccess::ACCESS_RESOURCES);
+	Ref<DirAccess> da = DirAccess::create(DirAccess::ACCESS_RESOURCES);
+	if (err == OK && da->file_exists(p_path + ".depren")) {
 		da->remove(p_path);
 		da->rename(p_path + ".depren", p_path);
 	}
@@ -1877,6 +1882,8 @@ void ResourceFormatSaverTextInstance::_find_resources(const Variant &p_variant, 
 				return;
 			}
 
+			resource_set.insert(res);
+
 			List<PropertyInfo> property_list;
 
 			res->get_property_list(&property_list);
@@ -1891,14 +1898,17 @@ void ResourceFormatSaverTextInstance::_find_resources(const Variant &p_variant, 
 					Variant v = res->get(I->get().name);
 
 					if (pi.usage & PROPERTY_USAGE_RESOURCE_NOT_PERSISTENT) {
+						NonPersistentKey npk;
+						npk.base = res;
+						npk.property = pi.name;
+						non_persistent_map[npk] = v;
+
 						Ref<Resource> sres = v;
 						if (sres.is_valid()) {
-							NonPersistentKey npk;
-							npk.base = res;
-							npk.property = pi.name;
-							non_persistent_map[npk] = sres;
 							resource_set.insert(sres);
 							saved_resources.push_back(sres);
+						} else {
+							_find_resources(v);
 						}
 					} else {
 						_find_resources(v);
@@ -1908,8 +1918,7 @@ void ResourceFormatSaverTextInstance::_find_resources(const Variant &p_variant, 
 				I = I->next();
 			}
 
-			resource_set.insert(res); //saved after, so the children it needs are available when loaded
-			saved_resources.push_back(res);
+			saved_resources.push_back(res); // Saved after, so the children it needs are available when loaded
 
 		} break;
 		case Variant::ARRAY: {

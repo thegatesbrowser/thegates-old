@@ -44,6 +44,7 @@
 #include "editor/editor_paths.h"
 #include "editor/editor_scale.h"
 #include "editor/editor_settings.h"
+#include "editor/editor_string_names.h"
 #include "editor/editor_themes.h"
 #include "editor/editor_vcs_interface.h"
 #include "editor/gui/editor_file_dialog.h"
@@ -59,6 +60,7 @@
 #include "scene/gui/separator.h"
 #include "scene/gui/texture_rect.h"
 #include "scene/main/window.h"
+#include "scene/resources/image_texture.h"
 #include "servers/display_server.h"
 #include "servers/navigation_server_3d.h"
 #include "servers/physics_server_2d.h"
@@ -75,21 +77,21 @@ void ProjectDialog::_set_message(const String &p_msg, MessageType p_type, InputT
 
 	switch (p_type) {
 		case MESSAGE_ERROR: {
-			msg->add_theme_color_override("font_color", get_theme_color(SNAME("error_color"), SNAME("Editor")));
+			msg->add_theme_color_override("font_color", get_theme_color(SNAME("error_color"), EditorStringName(Editor)));
 			msg->set_modulate(Color(1, 1, 1, 1));
-			new_icon = get_theme_icon(SNAME("StatusError"), SNAME("EditorIcons"));
+			new_icon = get_editor_theme_icon(SNAME("StatusError"));
 
 		} break;
 		case MESSAGE_WARNING: {
-			msg->add_theme_color_override("font_color", get_theme_color(SNAME("warning_color"), SNAME("Editor")));
+			msg->add_theme_color_override("font_color", get_theme_color(SNAME("warning_color"), EditorStringName(Editor)));
 			msg->set_modulate(Color(1, 1, 1, 1));
-			new_icon = get_theme_icon(SNAME("StatusWarning"), SNAME("EditorIcons"));
+			new_icon = get_editor_theme_icon(SNAME("StatusWarning"));
 
 		} break;
 		case MESSAGE_SUCCESS: {
 			msg->remove_theme_color_override("font_color");
 			msg->set_modulate(Color(1, 1, 1, 0));
-			new_icon = get_theme_icon(SNAME("StatusSuccess"), SNAME("EditorIcons"));
+			new_icon = get_editor_theme_icon(SNAME("StatusSuccess"));
 
 		} break;
 	}
@@ -98,12 +100,6 @@ void ProjectDialog::_set_message(const String &p_msg, MessageType p_type, InputT
 		status_rect->set_texture(new_icon);
 	} else if (current_install_icon != new_icon && input_type == INSTALL_PATH) {
 		install_status_rect->set_texture(new_icon);
-	}
-
-	Size2i window_size = get_size();
-	Size2 contents_min_size = get_contents_minimum_size();
-	if (window_size.x < contents_min_size.x || window_size.y < contents_min_size.y) {
-		set_size(window_size.max(contents_min_size));
 	}
 }
 
@@ -207,7 +203,7 @@ String ProjectDialog::_test_path() {
 				}
 
 			} else {
-				_set_message(TTR("Please choose a \"project.godot\" or \".zip\" file."), MESSAGE_ERROR);
+				_set_message(TTR("Please choose a \"project.godot\", a directory with it, or a \".zip\" file."), MESSAGE_ERROR);
 				install_path_container->hide();
 				get_ok_button()->set_disabled(true);
 				return "";
@@ -282,6 +278,9 @@ void ProjectDialog::_path_text_changed(const String &p_path) {
 }
 
 void ProjectDialog::_file_selected(const String &p_path) {
+	// If not already shown.
+	show_dialog();
+
 	String p = p_path;
 	if (mode == MODE_IMPORT) {
 		if (p.ends_with("project.godot")) {
@@ -310,6 +309,9 @@ void ProjectDialog::_file_selected(const String &p_path) {
 }
 
 void ProjectDialog::_path_selected(const String &p_path) {
+	// If not already shown.
+	show_dialog();
+
 	String sp = p_path.simplify_path();
 	project_path->set_text(sp);
 	_path_text_changed(sp);
@@ -327,7 +329,7 @@ void ProjectDialog::_browse_path() {
 	fdialog->set_current_dir(project_path->get_text());
 
 	if (mode == MODE_IMPORT) {
-		fdialog->set_file_mode(EditorFileDialog::FILE_MODE_OPEN_FILE);
+		fdialog->set_file_mode(EditorFileDialog::FILE_MODE_OPEN_ANY);
 		fdialog->clear_filters();
 		fdialog->add_filter("project.godot", vformat("%s %s", VERSION_NAME, TTR("Project")));
 		fdialog->add_filter("*.zip", TTR("ZIP File"));
@@ -389,7 +391,7 @@ void ProjectDialog::_nonempty_confirmation_ok_pressed() {
 }
 
 void ProjectDialog::_renderer_selected() {
-	ERR_FAIL_COND(!renderer_button_group->get_pressed_button());
+	ERR_FAIL_NULL(renderer_button_group->get_pressed_button());
 
 	String renderer_type = renderer_button_group->get_pressed_button()->get_meta(SNAME("rendering_method"));
 
@@ -640,11 +642,11 @@ void ProjectDialog::cancel_pressed() {
 	project_name->clear();
 	_text_changed("");
 
-	if (status_rect->get_texture() == get_theme_icon(SNAME("StatusError"), SNAME("EditorIcons"))) {
+	if (status_rect->get_texture() == get_editor_theme_icon(SNAME("StatusError"))) {
 		msg->show();
 	}
 
-	if (install_status_rect->get_texture() == get_theme_icon(SNAME("StatusError"), SNAME("EditorIcons"))) {
+	if (install_status_rect->get_texture() == get_editor_theme_icon(SNAME("StatusError"))) {
 		msg->show();
 	}
 }
@@ -663,6 +665,14 @@ void ProjectDialog::set_mode(Mode p_mode) {
 
 void ProjectDialog::set_project_path(const String &p_path) {
 	project_path->set_text(p_path);
+}
+
+void ProjectDialog::ask_for_path_and_show() {
+	// Workaround: for the file selection dialog content to be rendered we need to show its parent dialog.
+	show_dialog();
+	_set_message("");
+
+	_browse_path();
 }
 
 void ProjectDialog::show_dialog() {
@@ -711,9 +721,12 @@ void ProjectDialog::show_dialog() {
 			project_path->set_text(d->get_current_dir());
 			fdialog->set_current_dir(d->get_current_dir());
 		}
-		String proj = TTR("New Game Project");
-		project_name->set_text(proj);
-		_text_changed(proj);
+
+		if (project_name->get_text().is_empty()) {
+			String proj = TTR("New Game Project");
+			project_name->set_text(proj);
+			_text_changed(proj);
+		}
 
 		project_path->set_editable(true);
 		browse->set_disabled(false);
@@ -849,6 +862,7 @@ ProjectDialog::ProjectDialog() {
 
 	msg = memnew(Label);
 	msg->set_horizontal_alignment(HORIZONTAL_ALIGNMENT_CENTER);
+	msg->set_custom_minimum_size(Size2(200, 0) * EDSCALE);
 	vb->add_child(msg);
 
 	// Renderer selection.
@@ -974,20 +988,23 @@ void ProjectListItemControl::_notification(int p_what) {
 			if (icon_needs_reload) {
 				// The project icon may not be loaded by the time the control is displayed,
 				// so use a loading placeholder.
-				project_icon->set_texture(get_theme_icon(SNAME("ProjectIconLoading"), SNAME("EditorIcons")));
+				project_icon->set_texture(get_editor_theme_icon(SNAME("ProjectIconLoading")));
 			}
 
-			project_title->add_theme_font_override("font", get_theme_font(SNAME("title"), SNAME("EditorFonts")));
-			project_title->add_theme_font_size_override("font_size", get_theme_font_size(SNAME("title_size"), SNAME("EditorFonts")));
+			project_title->begin_bulk_theme_override();
+			project_title->add_theme_font_override("font", get_theme_font(SNAME("title"), EditorStringName(EditorFonts)));
+			project_title->add_theme_font_size_override("font_size", get_theme_font_size(SNAME("title_size"), EditorStringName(EditorFonts)));
 			project_title->add_theme_color_override("font_color", get_theme_color(SNAME("font_color"), SNAME("Tree")));
-			project_path->add_theme_color_override("font_color", get_theme_color(SNAME("font_color"), SNAME("Tree")));
-			project_unsupported_features->set_texture(get_theme_icon(SNAME("NodeWarning"), SNAME("EditorIcons")));
+			project_title->end_bulk_theme_override();
 
-			favorite_button->set_texture_normal(get_theme_icon(SNAME("Favorites"), SNAME("EditorIcons")));
+			project_path->add_theme_color_override("font_color", get_theme_color(SNAME("font_color"), SNAME("Tree")));
+			project_unsupported_features->set_texture(get_editor_theme_icon(SNAME("NodeWarning")));
+
+			favorite_button->set_texture_normal(get_editor_theme_icon(SNAME("Favorites")));
 			if (project_is_missing) {
-				explore_button->set_icon(get_theme_icon(SNAME("FileBroken"), SNAME("EditorIcons")));
+				explore_button->set_icon(get_editor_theme_icon(SNAME("FileBroken")));
 			} else {
-				explore_button->set_icon(get_theme_icon(SNAME("Load"), SNAME("EditorIcons")));
+				explore_button->set_icon(get_editor_theme_icon(SNAME("Load")));
 			}
 		} break;
 
@@ -1089,12 +1106,12 @@ void ProjectListItemControl::set_is_missing(bool p_missing) {
 	if (project_is_missing) {
 		project_icon->set_modulate(Color(1, 1, 1, 0.5));
 
-		explore_button->set_icon(get_theme_icon(SNAME("FileBroken"), SNAME("EditorIcons")));
+		explore_button->set_icon(get_editor_theme_icon(SNAME("FileBroken")));
 		explore_button->set_tooltip_text(TTR("Error: Project is missing on the filesystem."));
 	} else {
 		project_icon->set_modulate(Color(1, 1, 1, 1.0));
 
-		explore_button->set_icon(get_theme_icon(SNAME("Load"), SNAME("EditorIcons")));
+		explore_button->set_icon(get_editor_theme_icon(SNAME("Load")));
 #if !defined(ANDROID_ENABLED) && !defined(WEB_ENABLED)
 		explore_button->set_tooltip_text(TTR("Show in File Manager"));
 #else
@@ -1232,6 +1249,7 @@ struct ProjectListComparator {
 	}
 };
 
+const char *ProjectList::SIGNAL_LIST_CHANGED = "list_changed";
 const char *ProjectList::SIGNAL_SELECTION_CHANGED = "selection_changed";
 const char *ProjectList::SIGNAL_PROJECT_ASK_OPEN = "project_ask_open";
 
@@ -1261,7 +1279,7 @@ void ProjectList::_update_icons_async() {
 void ProjectList::_load_project_icon(int p_index) {
 	Item &item = _projects.write[p_index];
 
-	Ref<Texture2D> default_icon = get_theme_icon(SNAME("DefaultProjectIcon"), SNAME("EditorIcons"));
+	Ref<Texture2D> default_icon = get_editor_theme_icon(SNAME("DefaultProjectIcon"));
 	Ref<Texture2D> icon;
 	if (!item.icon.is_empty()) {
 		Ref<Image> img;
@@ -1339,7 +1357,7 @@ ProjectList::Item ProjectList::load_project_data(const String &p_path, bool p_fa
 	return Item(project_name, description, tags, p_path, icon, main_scene, unsupported_features, last_edited, p_favorite, grayed, missing, config_version);
 }
 
-void ProjectList::migrate_config() {
+void ProjectList::_migrate_config() {
 	// Proposal #1637 moved the project list from editor settings to a separate config file
 	// If the new config file doesn't exist, populate it from EditorSettings
 	if (FileAccess::exists(_config_path)) {
@@ -1371,9 +1389,10 @@ void ProjectList::migrate_config() {
 	save_config();
 }
 
-void ProjectList::load_projects() {
+void ProjectList::update_project_list() {
 	// This is a full, hard reload of the list. Don't call this unless really required, it's expensive.
 	// If you have 150 projects, it may read through 150 files on your disk at once + load 150 icons.
+	// FIXME: Does it really have to be a full, hard reload? Runtime updates should be made much cheaper.
 
 	// Clear whole list
 	for (int i = 0; i < _projects.size(); ++i) {
@@ -1404,6 +1423,7 @@ void ProjectList::load_projects() {
 	update_dock_menu();
 
 	set_v_scroll(0);
+	emit_signal(SNAME(SIGNAL_LIST_CHANGED));
 }
 
 void ProjectList::update_dock_menu() {
@@ -1661,6 +1681,48 @@ void ProjectList::erase_missing_projects() {
 	save_config();
 }
 
+void ProjectList::_scan_folder_recursive(const String &p_path, List<String> *r_projects) {
+	Ref<DirAccess> da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
+	Error error = da->change_dir(p_path);
+	ERR_FAIL_COND_MSG(error != OK, vformat("Failed to open the path \"%s\" for scanning (code %d).", p_path, error));
+
+	da->list_dir_begin();
+	String n = da->get_next();
+	while (!n.is_empty()) {
+		if (da->current_is_dir() && n[0] != '.') {
+			_scan_folder_recursive(da->get_current_dir().path_join(n), r_projects);
+		} else if (n == "project.godot") {
+			r_projects->push_back(da->get_current_dir());
+		}
+		n = da->get_next();
+	}
+	da->list_dir_end();
+}
+
+void ProjectList::find_projects(const String &p_path) {
+	PackedStringArray paths = { p_path };
+	find_projects_multiple(paths);
+}
+
+void ProjectList::find_projects_multiple(const PackedStringArray &p_paths) {
+	List<String> projects;
+
+	for (int i = 0; i < p_paths.size(); i++) {
+		const String &base_path = p_paths.get(i);
+		print_verbose(vformat("Scanning for projects in \"%s\".", base_path));
+
+		_scan_folder_recursive(base_path, &projects);
+		print_verbose(vformat("Found %d project(s).", projects.size()));
+	}
+
+	for (const String &E : projects) {
+		add_project(E, false);
+	}
+
+	save_config();
+	update_project_list();
+}
+
 int ProjectList::refresh_project(const String &dir_path) {
 	// Reloads information about a specific project.
 	// If it wasn't loaded and should be in the list, it is added (i.e new project).
@@ -1847,7 +1909,7 @@ void ProjectList::_panel_input(const Ref<InputEvent> &p_ev, Node *p_hb) {
 			CRASH_COND(anchor_index == -1);
 			_select_project_range(anchor_index, clicked_index);
 
-		} else if (mb->is_ctrl_pressed()) {
+		} else if (mb->is_command_or_control_pressed()) {
 			_toggle_project(clicked_index);
 
 		} else {
@@ -1859,7 +1921,7 @@ void ProjectList::_panel_input(const Ref<InputEvent> &p_ev, Node *p_hb) {
 
 		// Do not allow opening a project more than once using a single project manager instance.
 		// Opening the same project in several editor instances at once can lead to various issues.
-		if (!mb->is_ctrl_pressed() && mb->is_double_click() && !project_opening_initiated) {
+		if (!mb->is_command_or_control_pressed() && mb->is_double_click() && !project_opening_initiated) {
 			emit_signal(SNAME(SIGNAL_PROJECT_ASK_OPEN));
 		}
 	}
@@ -1899,6 +1961,7 @@ void ProjectList::_show_project(const String &p_path) {
 }
 
 void ProjectList::_bind_methods() {
+	ADD_SIGNAL(MethodInfo(SIGNAL_LIST_CHANGED));
 	ADD_SIGNAL(MethodInfo(SIGNAL_SELECTION_CHANGED));
 	ADD_SIGNAL(MethodInfo(SIGNAL_PROJECT_ASK_OPEN));
 }
@@ -1909,6 +1972,7 @@ ProjectList::ProjectList() {
 	add_child(_scroll_children);
 
 	_config_path = EditorPaths::get_singleton()->get_data_dir().path_join("projects.cfg");
+	_migrate_config();
 }
 
 /// Project Manager.
@@ -1928,28 +1992,28 @@ void ProjectManager::_notification(int p_what) {
 		} break;
 
 		case NOTIFICATION_THEME_CHANGED: {
-			background_panel->add_theme_style_override("panel", get_theme_stylebox(SNAME("Background"), SNAME("EditorStyles")));
-			loading_label->add_theme_font_override("font", get_theme_font(SNAME("bold"), SNAME("EditorFonts")));
+			background_panel->add_theme_style_override("panel", get_theme_stylebox(SNAME("Background"), EditorStringName(EditorStyles)));
+			loading_label->add_theme_font_override("font", get_theme_font(SNAME("bold"), EditorStringName(EditorFonts)));
 			search_panel->add_theme_style_override("panel", get_theme_stylebox(SNAME("search_panel"), SNAME("ProjectManager")));
 
 			// Top bar.
-			search_box->set_right_icon(get_theme_icon(SNAME("Search"), SNAME("EditorIcons")));
-			language_btn->set_icon(get_theme_icon(SNAME("Environment"), SNAME("EditorIcons")));
+			search_box->set_right_icon(get_editor_theme_icon(SNAME("Search")));
+			language_btn->set_icon(get_editor_theme_icon(SNAME("Environment")));
 
 			// Sidebar.
-			create_btn->set_icon(get_theme_icon(SNAME("Add"), SNAME("EditorIcons")));
-			import_btn->set_icon(get_theme_icon(SNAME("Load"), SNAME("EditorIcons")));
-			scan_btn->set_icon(get_theme_icon(SNAME("Search"), SNAME("EditorIcons")));
-			open_btn->set_icon(get_theme_icon(SNAME("Edit"), SNAME("EditorIcons")));
-			run_btn->set_icon(get_theme_icon(SNAME("Play"), SNAME("EditorIcons")));
-			rename_btn->set_icon(get_theme_icon(SNAME("Rename"), SNAME("EditorIcons")));
-			manage_tags_btn->set_icon(get_theme_icon("Script", "EditorIcons"));
-			erase_btn->set_icon(get_theme_icon(SNAME("Remove"), SNAME("EditorIcons")));
-			erase_missing_btn->set_icon(get_theme_icon(SNAME("Clear"), SNAME("EditorIcons")));
-			create_tag_btn->set_icon(get_theme_icon("Add", "EditorIcons"));
+			create_btn->set_icon(get_editor_theme_icon(SNAME("Add")));
+			import_btn->set_icon(get_editor_theme_icon(SNAME("Load")));
+			scan_btn->set_icon(get_editor_theme_icon(SNAME("Search")));
+			open_btn->set_icon(get_editor_theme_icon(SNAME("Edit")));
+			run_btn->set_icon(get_editor_theme_icon(SNAME("Play")));
+			rename_btn->set_icon(get_editor_theme_icon(SNAME("Rename")));
+			manage_tags_btn->set_icon(get_editor_theme_icon("Script"));
+			erase_btn->set_icon(get_editor_theme_icon(SNAME("Remove")));
+			erase_missing_btn->set_icon(get_editor_theme_icon(SNAME("Clear")));
+			create_tag_btn->set_icon(get_editor_theme_icon("Add"));
 
-			tag_error->add_theme_color_override("font_color", get_theme_color("error_color", "Editor"));
-			tag_edit_error->add_theme_color_override("font_color", get_theme_color("error_color", "Editor"));
+			tag_error->add_theme_color_override("font_color", get_theme_color("error_color", EditorStringName(Editor)));
+			tag_edit_error->add_theme_color_override("font_color", get_theme_color("error_color", EditorStringName(Editor)));
 
 			create_btn->add_theme_constant_override("h_separation", get_theme_constant(SNAME("sidebar_button_icon_separation"), SNAME("ProjectManager")));
 			import_btn->add_theme_constant_override("h_separation", get_theme_constant(SNAME("sidebar_button_icon_separation"), SNAME("ProjectManager")));
@@ -1976,10 +2040,10 @@ void ProjectManager::_notification(int p_what) {
 				real_t size = get_size().x / EDSCALE;
 				// Adjust names of tabs to fit the new size.
 				if (size < 650) {
-					local_projects_hb->set_name(TTR("Local"));
+					local_projects_vb->set_name(TTR("Local"));
 					asset_library->set_name(TTR("Asset Library"));
 				} else {
-					local_projects_hb->set_name(TTR("Local Projects"));
+					local_projects_vb->set_name(TTR("Local Projects"));
 					asset_library->set_name(TTR("Asset Library Projects"));
 				}
 			}
@@ -2039,9 +2103,39 @@ void ProjectManager::_build_icon_type_cache(Ref<Theme> p_theme) {
 		return;
 	}
 	List<StringName> tl;
-	p_theme->get_icon_list(SNAME("EditorIcons"), &tl);
+	p_theme->get_icon_list(EditorStringName(EditorIcons), &tl);
 	for (List<StringName>::Element *E = tl.front(); E; E = E->next()) {
-		icon_type_cache[E->get()] = p_theme->get_icon(E->get(), SNAME("EditorIcons"));
+		icon_type_cache[E->get()] = p_theme->get_icon(E->get(), EditorStringName(EditorIcons));
+	}
+}
+
+void ProjectManager::_update_size_limits() {
+	const Size2 minimum_size = Size2(680, 450) * EDSCALE;
+	const Size2 default_size = Size2(1024, 600) * EDSCALE;
+
+	// Define a minimum window size to prevent UI elements from overlapping or being cut off.
+	Window *w = Object::cast_to<Window>(SceneTree::get_singleton()->get_root());
+	if (w) {
+		// Calling Window methods this early doesn't sync properties with DS.
+		w->set_min_size(minimum_size);
+		DisplayServer::get_singleton()->window_set_min_size(minimum_size);
+		w->set_size(default_size);
+		DisplayServer::get_singleton()->window_set_size(default_size);
+	}
+
+	Rect2i screen_rect = DisplayServer::get_singleton()->screen_get_usable_rect(DisplayServer::get_singleton()->window_get_current_screen());
+	if (screen_rect.size != Vector2i()) {
+		// Center the window on the screen.
+		Vector2i window_position;
+		window_position.x = screen_rect.position.x + (screen_rect.size.x - default_size.x) / 2;
+		window_position.y = screen_rect.position.y + (screen_rect.size.y - default_size.y) / 2;
+		DisplayServer::get_singleton()->window_set_position(window_position);
+
+		// Limit popup menus to prevent unusably long lists.
+		// We try to set it to half the screen resolution, but no smaller than the minimum window size.
+		Size2 half_screen_rect = (screen_rect.size * EDSCALE) / 2;
+		Size2 maximum_popup_size = MAX(half_screen_rect, minimum_size);
+		language_btn->get_popup()->set_max_size(maximum_popup_size);
 	}
 }
 
@@ -2164,15 +2258,6 @@ void ProjectManager::shortcut_input(const Ref<InputEvent> &p_ev) {
 			accept_event();
 		}
 	}
-}
-
-void ProjectManager::_load_recent_projects() {
-	_project_list->set_search_term(search_box->get_text().strip_edges());
-	_project_list->load_projects();
-
-	_update_project_buttons();
-
-	tabs->set_current_tab(0);
 }
 
 void ProjectManager::_on_projects_updated() {
@@ -2412,30 +2497,6 @@ void ProjectManager::_run_project() {
 	}
 }
 
-void ProjectManager::_scan_dir(const String &path) {
-	Ref<DirAccess> da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
-	Error error = da->change_dir(path);
-	ERR_FAIL_COND_MSG(error != OK, "Could not scan directory at: " + path);
-	da->list_dir_begin();
-	String n = da->get_next();
-	while (!n.is_empty()) {
-		if (da->current_is_dir() && !n.begins_with(".")) {
-			_scan_dir(da->get_current_dir().path_join(n));
-		} else if (n == "project.godot") {
-			_project_list->add_project(da->get_current_dir(), false);
-		}
-		n = da->get_next();
-	}
-	da->list_dir_end();
-}
-
-void ProjectManager::_scan_begin(const String &p_base) {
-	print_line("Scanning projects at: " + p_base);
-	_scan_dir(p_base);
-	_project_list->save_config();
-	_load_recent_projects();
-}
-
 void ProjectManager::_scan_projects() {
 	scan_dir->popup_file_dialog();
 }
@@ -2447,7 +2508,7 @@ void ProjectManager::_new_project() {
 
 void ProjectManager::_import_project() {
 	npdialog->set_mode(ProjectDialog::MODE_IMPORT);
-	npdialog->show_dialog();
+	npdialog->ask_for_path_and_show();
 }
 
 void ProjectManager::_rename_project() {
@@ -2635,54 +2696,26 @@ void ProjectManager::_install_project(const String &p_zip_path, const String &p_
 }
 
 void ProjectManager::_files_dropped(PackedStringArray p_files) {
+	// TODO: Support installing multiple ZIPs at the same time?
 	if (p_files.size() == 1 && p_files[0].ends_with(".zip")) {
-		const String file = p_files[0].get_file();
-		_install_project(p_files[0], file.substr(0, file.length() - 4).capitalize());
+		const String &file = p_files[0];
+		_install_project(file, file.get_file().get_basename().capitalize());
 		return;
 	}
+
 	HashSet<String> folders_set;
 	Ref<DirAccess> da = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
 	for (int i = 0; i < p_files.size(); i++) {
-		String file = p_files[i];
+		const String &file = p_files[i];
 		folders_set.insert(da->dir_exists(file) ? file : file.get_base_dir());
 	}
-	if (folders_set.size() > 0) {
-		PackedStringArray folders;
-		for (const String &E : folders_set) {
-			folders.push_back(E);
-		}
+	ERR_FAIL_COND(folders_set.size() == 0); // This can't really happen, we consume every dropped file path above.
 
-		bool confirm = true;
-		if (folders.size() == 1) {
-			Ref<DirAccess> dir = DirAccess::create(DirAccess::ACCESS_FILESYSTEM);
-			if (dir->change_dir(folders[0]) == OK) {
-				dir->list_dir_begin();
-				String file = dir->get_next();
-				while (confirm && !file.is_empty()) {
-					if (!dir->current_is_dir() && file.ends_with("project.godot")) {
-						confirm = false;
-					}
-					file = dir->get_next();
-				}
-				dir->list_dir_end();
-			}
-		}
-		if (confirm) {
-			multi_scan_ask->get_ok_button()->disconnect("pressed", callable_mp(this, &ProjectManager::_scan_multiple_folders));
-			multi_scan_ask->get_ok_button()->connect("pressed", callable_mp(this, &ProjectManager::_scan_multiple_folders).bind(folders));
-			multi_scan_ask->set_text(
-					vformat(TTR("Are you sure to scan %s folders for existing Godot projects?\nThis could take a while."), folders.size()));
-			multi_scan_ask->popup_centered();
-		} else {
-			_scan_multiple_folders(folders);
-		}
+	PackedStringArray folders;
+	for (const String &E : folders_set) {
+		folders.push_back(E);
 	}
-}
-
-void ProjectManager::_scan_multiple_folders(PackedStringArray p_files) {
-	for (int i = 0; i < p_files.size(); i++) {
-		_scan_begin(p_files.get(i));
-	}
+	_project_list->find_projects_multiple(folders);
 }
 
 void ProjectManager::_on_order_option_changed(int p_idx) {
@@ -2715,9 +2748,12 @@ void ProjectManager::_on_search_term_changed(const String &p_term) {
 	_update_project_buttons();
 }
 
-void ProjectManager::_bind_methods() {
-	ClassDB::bind_method("_update_project_buttons", &ProjectManager::_update_project_buttons);
-	ClassDB::bind_method("_version_button_pressed", &ProjectManager::_version_button_pressed);
+void ProjectManager::_on_search_term_submitted(const String &p_text) {
+	if (tabs->get_current_tab() != 0) {
+		return;
+	}
+
+	_open_selected_projects_ask();
 }
 
 void ProjectManager::_open_asset_library() {
@@ -2821,8 +2857,9 @@ ProjectManager::ProjectManager() {
 	}
 
 	EditorColorMap::create();
+	EditorTheme::initialize();
 	Ref<Theme> theme = create_custom_theme();
-	DisplayServer::set_early_window_clear_color_override(true, theme->get_color(SNAME("background"), SNAME("Editor")));
+	DisplayServer::set_early_window_clear_color_override(true, theme->get_color(SNAME("background"), EditorStringName(Editor)));
 
 	set_theme(theme);
 	set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
@@ -2840,37 +2877,52 @@ ProjectManager::ProjectManager() {
 	vb->add_child(center_box);
 
 	tabs = memnew(TabContainer);
-	center_box->add_child(tabs);
 	tabs->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
+	center_box->add_child(tabs);
 	tabs->connect("tab_changed", callable_mp(this, &ProjectManager::_on_tab_changed));
 
-	local_projects_hb = memnew(HBoxContainer);
-	local_projects_hb->set_name(TTR("Local Projects"));
-	tabs->add_child(local_projects_hb);
+	local_projects_vb = memnew(VBoxContainer);
+	local_projects_vb->set_name(TTR("Local Projects"));
+	tabs->add_child(local_projects_vb);
 
 	{
-		// Projects + search bar
-		VBoxContainer *search_tree_vb = memnew(VBoxContainer);
-		local_projects_hb->add_child(search_tree_vb);
-		search_tree_vb->set_h_size_flags(Control::SIZE_EXPAND_FILL);
-
+		// A bar at top with buttons and options.
 		HBoxContainer *hb = memnew(HBoxContainer);
 		hb->set_h_size_flags(Control::SIZE_EXPAND_FILL);
-		search_tree_vb->add_child(hb);
+		local_projects_vb->add_child(hb);
 
-		search_box = memnew(LineEdit);
-		search_box->set_placeholder(TTR("Filter Projects"));
-		search_box->set_tooltip_text(TTR("This field filters projects by name and last path component.\nTo filter projects by name and full path, the query must contain at least one `/` character."));
-		search_box->set_clear_button_enabled(true);
-		search_box->connect("text_changed", callable_mp(this, &ProjectManager::_on_search_term_changed));
-		search_box->set_h_size_flags(Control::SIZE_EXPAND_FILL);
-		hb->add_child(search_box);
+		create_btn = memnew(Button);
+		create_btn->set_text(TTR("New"));
+		create_btn->set_shortcut(ED_SHORTCUT("project_manager/new_project", TTR("New Project"), KeyModifierMask::CMD_OR_CTRL | Key::N));
+		create_btn->connect("pressed", callable_mp(this, &ProjectManager::_new_project));
+		hb->add_child(create_btn);
+
+		import_btn = memnew(Button);
+		import_btn->set_text(TTR("Import"));
+		import_btn->set_shortcut(ED_SHORTCUT("project_manager/import_project", TTR("Import Project"), KeyModifierMask::CMD_OR_CTRL | Key::I));
+		import_btn->connect("pressed", callable_mp(this, &ProjectManager::_import_project));
+		hb->add_child(import_btn);
+
+		scan_btn = memnew(Button);
+		scan_btn->set_text(TTR("Scan"));
+		scan_btn->set_shortcut(ED_SHORTCUT("project_manager/scan_projects", TTR("Scan Projects"), KeyModifierMask::CMD_OR_CTRL | Key::S));
+		scan_btn->connect("pressed", callable_mp(this, &ProjectManager::_scan_projects));
+		hb->add_child(scan_btn);
 
 		loading_label = memnew(Label(TTR("Loading, please wait...")));
 		loading_label->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 		hb->add_child(loading_label);
 		// The loading label is shown later.
 		loading_label->hide();
+
+		search_box = memnew(LineEdit);
+		search_box->set_placeholder(TTR("Filter Projects"));
+		search_box->set_tooltip_text(TTR("This field filters projects by name and last path component.\nTo filter projects by name and full path, the query must contain at least one `/` character."));
+		search_box->set_clear_button_enabled(true);
+		search_box->connect("text_changed", callable_mp(this, &ProjectManager::_on_search_term_changed));
+		search_box->connect("text_submitted", callable_mp(this, &ProjectManager::_on_search_term_submitted));
+		search_box->set_h_size_flags(Control::SIZE_EXPAND_FILL);
+		hb->add_child(search_box);
 
 		Label *sort_label = memnew(Label);
 		sort_label->set_text(TTR("Sort:"));
@@ -2879,6 +2931,7 @@ ProjectManager::ProjectManager() {
 		filter_option = memnew(OptionButton);
 		filter_option->set_clip_text(true);
 		filter_option->set_h_size_flags(Control::SIZE_EXPAND_FILL);
+		filter_option->set_stretch_ratio(0.3);
 		filter_option->connect("item_selected", callable_mp(this, &ProjectManager::_on_order_option_changed));
 		hb->add_child(filter_option);
 
@@ -2891,41 +2944,29 @@ ProjectManager::ProjectManager() {
 		for (int i = 0; i < sort_filter_titles.size(); i++) {
 			filter_option->add_item(sort_filter_titles[i]);
 		}
-
-		search_panel = memnew(PanelContainer);
-		search_panel->set_v_size_flags(Control::SIZE_EXPAND_FILL);
-		search_tree_vb->add_child(search_panel);
-
-		_project_list = memnew(ProjectList);
-		_project_list->connect(ProjectList::SIGNAL_SELECTION_CHANGED, callable_mp(this, &ProjectManager::_update_project_buttons));
-		_project_list->connect(ProjectList::SIGNAL_PROJECT_ASK_OPEN, callable_mp(this, &ProjectManager::_open_selected_projects_ask));
-		_project_list->set_horizontal_scroll_mode(ScrollContainer::SCROLL_MODE_DISABLED);
-		search_panel->add_child(_project_list);
 	}
 
 	{
-		// Project tab side bar
+		// A container for the project list and for the side bar with buttons.
+		HBoxContainer *search_tree_hb = memnew(HBoxContainer);
+		local_projects_vb->add_child(search_tree_hb);
+		search_tree_hb->set_v_size_flags(Control::SIZE_EXPAND_FILL);
+
+		search_panel = memnew(PanelContainer);
+		search_panel->set_h_size_flags(Control::SIZE_EXPAND_FILL);
+		search_tree_hb->add_child(search_panel);
+
+		_project_list = memnew(ProjectList);
+		_project_list->set_horizontal_scroll_mode(ScrollContainer::SCROLL_MODE_DISABLED);
+		search_panel->add_child(_project_list);
+		_project_list->connect(ProjectList::SIGNAL_LIST_CHANGED, callable_mp(this, &ProjectManager::_update_project_buttons));
+		_project_list->connect(ProjectList::SIGNAL_SELECTION_CHANGED, callable_mp(this, &ProjectManager::_update_project_buttons));
+		_project_list->connect(ProjectList::SIGNAL_PROJECT_ASK_OPEN, callable_mp(this, &ProjectManager::_open_selected_projects_ask));
+
+		// The side bar with the edit, run, rename, etc. buttons.
 		VBoxContainer *tree_vb = memnew(VBoxContainer);
 		tree_vb->set_custom_minimum_size(Size2(120, 120));
-		local_projects_hb->add_child(tree_vb);
-
-		create_btn = memnew(Button);
-		create_btn->set_text(TTR("New Project"));
-		create_btn->set_shortcut(ED_SHORTCUT("project_manager/new_project", TTR("New Project"), KeyModifierMask::CMD_OR_CTRL | Key::N));
-		create_btn->connect("pressed", callable_mp(this, &ProjectManager::_new_project));
-		tree_vb->add_child(create_btn);
-
-		import_btn = memnew(Button);
-		import_btn->set_text(TTR("Import"));
-		import_btn->set_shortcut(ED_SHORTCUT("project_manager/import_project", TTR("Import Project"), KeyModifierMask::CMD_OR_CTRL | Key::I));
-		import_btn->connect("pressed", callable_mp(this, &ProjectManager::_import_project));
-		tree_vb->add_child(import_btn);
-
-		scan_btn = memnew(Button);
-		scan_btn->set_text(TTR("Scan"));
-		scan_btn->set_shortcut(ED_SHORTCUT("project_manager/scan_projects", TTR("Scan Projects"), KeyModifierMask::CMD_OR_CTRL | Key::S));
-		scan_btn->connect("pressed", callable_mp(this, &ProjectManager::_scan_projects));
-		tree_vb->add_child(scan_btn);
+		search_tree_hb->add_child(tree_vb);
 
 		tree_vb->add_child(memnew(HSeparator));
 
@@ -3066,7 +3107,7 @@ ProjectManager::ProjectManager() {
 		scan_dir->set_title(TTR("Select a Folder to Scan")); // must be after mode or it's overridden
 		scan_dir->set_current_dir(EDITOR_GET("filesystem/directories/default_project_path"));
 		add_child(scan_dir);
-		scan_dir->connect("dir_selected", callable_mp(this, &ProjectManager::_scan_begin));
+		scan_dir->connect("dir_selected", callable_mp(_project_list, &ProjectList::find_projects));
 
 		erase_missing_ask = memnew(ConfirmationDialog);
 		erase_missing_ask->set_ok_button_text(TTR("Remove All"));
@@ -3099,10 +3140,6 @@ ProjectManager::ProjectManager() {
 		multi_run_ask->set_ok_button_text(TTR("Run"));
 		multi_run_ask->get_ok_button()->connect("pressed", callable_mp(this, &ProjectManager::_run_project_confirm));
 		add_child(multi_run_ask);
-
-		multi_scan_ask = memnew(ConfirmationDialog);
-		multi_scan_ask->set_ok_button_text(TTR("Scan"));
-		add_child(multi_scan_ask);
 
 		ask_update_settings = memnew(ConfirmationDialog);
 		ask_update_settings->set_autowrap(true);
@@ -3212,57 +3249,43 @@ ProjectManager::ProjectManager() {
 		create_tag_btn->connect("pressed", callable_mp((Window *)create_tag_dialog, &Window::popup_centered).bind(Vector2i(500, 0) * EDSCALE));
 	}
 
-	_project_list->migrate_config();
-	_load_recent_projects();
+	// Initialize project list.
+	{
+		Ref<DirAccess> dir_access = DirAccess::create(DirAccess::AccessType::ACCESS_FILESYSTEM);
 
-	Ref<DirAccess> dir_access = DirAccess::create(DirAccess::AccessType::ACCESS_FILESYSTEM);
-
-	String default_project_path = EDITOR_GET("filesystem/directories/default_project_path");
-	if (!dir_access->dir_exists(default_project_path)) {
-		Error error = dir_access->make_dir_recursive(default_project_path);
-		if (error != OK) {
-			ERR_PRINT("Could not create default project directory at: " + default_project_path);
-		}
-	}
-
-	String autoscan_path = EDITOR_GET("filesystem/directories/autoscan_project_path");
-	if (!autoscan_path.is_empty()) {
-		if (dir_access->dir_exists(autoscan_path)) {
-			_scan_begin(autoscan_path);
-		} else {
-			Error error = dir_access->make_dir_recursive(autoscan_path);
+		String default_project_path = EDITOR_GET("filesystem/directories/default_project_path");
+		if (!default_project_path.is_empty() && !dir_access->dir_exists(default_project_path)) {
+			Error error = dir_access->make_dir_recursive(default_project_path);
 			if (error != OK) {
-				ERR_PRINT("Could not create project autoscan directory at: " + autoscan_path);
+				ERR_PRINT("Could not create default project directory at: " + default_project_path);
 			}
+		}
+
+		bool scanned_for_projects = false; // Scanning will update the list automatically.
+
+		String autoscan_path = EDITOR_GET("filesystem/directories/autoscan_project_path");
+		if (!autoscan_path.is_empty()) {
+			if (dir_access->dir_exists(autoscan_path)) {
+				_project_list->find_projects(autoscan_path);
+				scanned_for_projects = true;
+			} else {
+				Error error = dir_access->make_dir_recursive(autoscan_path);
+				if (error != OK) {
+					ERR_PRINT("Could not create project autoscan directory at: " + autoscan_path);
+				}
+			}
+		}
+
+		if (!scanned_for_projects) {
+			_project_list->update_project_list();
 		}
 	}
 
 	SceneTree::get_singleton()->get_root()->connect("files_dropped", callable_mp(this, &ProjectManager::_files_dropped));
 
-	// Define a minimum window size to prevent UI elements from overlapping or being cut off.
-	Window *w = Object::cast_to<Window>(SceneTree::get_singleton()->get_root());
-	if (w) {
-		w->set_min_size(Size2(520, 350) * EDSCALE);
-	}
-
-	// Resize the bootsplash window based on Editor display scale EDSCALE.
-	float scale_factor = MAX(1, EDSCALE);
-	if (scale_factor > 1.0) {
-		Vector2i window_size = DisplayServer::get_singleton()->window_get_size();
-		Rect2i screen_rect = DisplayServer::get_singleton()->screen_get_usable_rect(DisplayServer::get_singleton()->window_get_current_screen());
-
-		window_size *= scale_factor;
-
-		DisplayServer::get_singleton()->window_set_size(window_size);
-		if (screen_rect.size != Vector2i()) {
-			Vector2i window_position;
-			window_position.x = screen_rect.position.x + (screen_rect.size.x - window_size.x) / 2;
-			window_position.y = screen_rect.position.y + (screen_rect.size.y - window_size.y) / 2;
-			DisplayServer::get_singleton()->window_set_position(window_position);
-		}
-	}
-
 	OS::get_singleton()->set_low_processor_usage_mode(true);
+
+	_update_size_limits();
 }
 
 ProjectManager::~ProjectManager() {
@@ -3270,6 +3293,9 @@ ProjectManager::~ProjectManager() {
 	if (EditorSettings::get_singleton()) {
 		EditorSettings::destroy();
 	}
+
+	EditorColorMap::finish();
+	EditorTheme::finalize();
 }
 
 void ProjectTag::_notification(int p_what) {

@@ -7,7 +7,7 @@
 		A 3×3 matrix used for representing 3D rotation and scale. Usually used as an orthogonal basis for a [Transform3D].
 		Contains 3 vector fields X, Y and Z as its columns, which are typically interpreted as the local basis vectors of a transformation. For such use, it is composed of a scaling and a rotation matrix, in that order (M = R.S).
 		Basis can also be accessed as an array of 3D vectors. These vectors are usually orthogonal to each other, but are not necessarily normalized (due to scaling).
-		For more information, read the "Matrices and transforms" documentation article.
+		For a general introduction, see the [url=$DOCS_URL/tutorials/math/matrices_and_transforms.html]Matrices and transforms[/url] tutorial.
 	</description>
 	<tutorials>
 		<link title="Math documentation index">$DOCS_URL/tutorials/math/index.html</link>
@@ -106,6 +106,12 @@
 				Returns the inverse of the matrix.
 			</description>
 		</method>
+		<method name="is_conformal" qualifiers="const">
+			<return type="bool" />
+			<description>
+				Returns [code]true[/code] if the basis is conformal, meaning it preserves angles and distance ratios, and may only be composed of rotation and uniform scale. Returns [code]false[/code] if the basis has non-uniform scale or shear/skew. This can be used to validate if the basis is non-distorted, which is important for physics and other use cases.
+			</description>
+		</method>
 		<method name="is_equal_approx" qualifiers="const">
 			<return type="bool" />
 			<param index="0" name="b" type="Basis" />
@@ -201,7 +207,7 @@
 	<constants>
 		<constant name="IDENTITY" value="Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)">
 			The identity basis, with no rotation or scaling applied.
-			This is identical to calling [code]Basis()[/code] without any parameters. This constant can be used to make your code clearer, and for consistency with C#.
+			This is identical to creating [constructor Basis] without any parameters. This constant can be used to make your code clearer, and for consistency with C#.
 		</constant>
 		<constant name="FLIP_X" value="Basis(-1, 0, 0, 0, 1, 0, 0, 0, 1)">
 			The basis that will flip something along the X axis when used in a transformation.

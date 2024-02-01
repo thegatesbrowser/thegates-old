@@ -39,7 +39,7 @@ import android.os.*
 import android.util.Log
 import android.widget.Toast
 import androidx.window.layout.WindowMetricsCalculator
-import org.godotengine.godot.FullScreenGodotApp
+import org.godotengine.godot.GodotActivity
 import org.godotengine.godot.GodotLib
 import org.godotengine.godot.utils.PermissionsUtil
 import org.godotengine.godot.utils.ProcessPhoenix
@@ -55,7 +55,7 @@ import kotlin.math.min
  *
  * It also plays the role of the primary editor window.
  */
-open class GodotEditor : FullScreenGodotApp() {
+open class GodotEditor : GodotActivity() {
 
 	companion object {
 		private val TAG = GodotEditor::class.java.simpleName
@@ -115,7 +115,7 @@ open class GodotEditor : FullScreenGodotApp() {
 
 		runOnUiThread {
 			// Enable long press, panning and scaling gestures
-			godotFragment?.renderView?.inputHandler?.apply {
+			godotFragment?.godot?.renderView?.inputHandler?.apply {
 				enableLongPress(longPressEnabled)
 				enablePanningAndScalingGestures(panScaleEnabled)
 			}
@@ -225,16 +225,9 @@ open class GodotEditor : FullScreenGodotApp() {
 		val runningProcesses = activityManager.runningAppProcesses
 		for (runningProcess in runningProcesses) {
 			if (runningProcess.processName.endsWith(processNameSuffix)) {
-				if (targetClass == null) {
-					// Killing process directly
-					Log.v(TAG, "Killing Godot process ${runningProcess.processName}")
-					Process.killProcess(runningProcess.pid)
-				} else {
-					// Activity is running; sending a request for self termination.
-					Log.v(TAG, "Sending force quit request to $targetClass running on process ${runningProcess.processName}")
-					val forceQuitIntent = Intent(this, targetClass).putExtra(EXTRA_FORCE_QUIT, true)
-					startActivity(forceQuitIntent)
-				}
+				// Killing process directly
+				Log.v(TAG, "Killing Godot process ${runningProcess.processName}")
+				Process.killProcess(runningProcess.pid)
 				return true
 			}
 		}
@@ -318,7 +311,7 @@ open class GodotEditor : FullScreenGodotApp() {
 
 	override fun onRequestPermissionsResult(
 		requestCode: Int,
-		permissions: Array<String?>,
+		permissions: Array<String>,
 		grantResults: IntArray
 	) {
 		super.onRequestPermissionsResult(requestCode, permissions, grantResults)

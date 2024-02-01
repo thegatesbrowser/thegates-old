@@ -31,6 +31,7 @@
 #include "texture_loader_dds.h"
 
 #include "core/io/file_access.h"
+#include "scene/resources/image_texture.h"
 
 #define PF_FOURCC(s) ((uint32_t)(((s)[3] << 24U) | ((s)[2] << 16U) | ((s)[1] << 8U) | ((s)[0])))
 
@@ -61,7 +62,6 @@ enum DDSFormat {
 	DDS_BGR5A1,
 	DDS_BGR565,
 	DDS_BGR10A2,
-	DDS_INDEXED,
 	DDS_LUMINANCE,
 	DDS_LUMINANCE_ALPHA,
 	DDS_MAX
@@ -196,9 +196,9 @@ Ref<Resource> ResourceFormatDDS::load(const String &p_path, const String &p_orig
 		dds_format = DDS_BGR10A2;
 	} else if (format_flags & DDPF_RGB && !(format_flags & DDPF_ALPHAPIXELS) && format_rgb_bits == 16 && format_red_mask == 0x0000f800 && format_green_mask == 0x000007e0 && format_blue_mask == 0x0000001f) {
 		dds_format = DDS_BGR565;
-	} else if (!(format_flags & DDPF_ALPHAPIXELS) && format_rgb_bits == 8 && format_red_mask == 0xff && format_green_mask == 0xff && format_blue_mask == 0xff) {
+	} else if (!(format_flags & DDPF_ALPHAPIXELS) && format_rgb_bits == 8 && format_red_mask == 0xff) {
 		dds_format = DDS_LUMINANCE;
-	} else if ((format_flags & DDPF_ALPHAPIXELS) && format_rgb_bits == 16 && format_red_mask == 0xff && format_green_mask == 0xff && format_blue_mask == 0xff && format_alpha_mask == 0xff00) {
+	} else if ((format_flags & DDPF_ALPHAPIXELS) && format_rgb_bits == 16 && format_red_mask == 0xff && format_alpha_mask == 0xff00) {
 		dds_format = DDS_LUMINANCE_ALPHA;
 	} else if (format_flags & DDPF_INDEXED && format_rgb_bits == 8) {
 		dds_format = DDS_BGR565;
@@ -221,8 +221,12 @@ Ref<Resource> ResourceFormatDDS::load(const String &p_path, const String &p_orig
 		//compressed bc
 
 		uint32_t size = MAX(info.divisor, w) / info.divisor * MAX(info.divisor, h) / info.divisor * info.block_size;
-		ERR_FAIL_COND_V(size != pitch, Ref<Resource>());
-		ERR_FAIL_COND_V(!(flags & DDSD_LINEARSIZE), Ref<Resource>());
+
+		if (flags & DDSD_LINEARSIZE) {
+			ERR_FAIL_COND_V_MSG(size != pitch, Ref<Resource>(), "DDS header flags specify that a linear size of the top-level image is present, but the specified size does not match the expected value.");
+		} else {
+			ERR_FAIL_COND_V_MSG(pitch != 0, Ref<Resource>(), "DDS header flags specify that no linear size will given for the top-level image, but a non-zero linear size value is present in the header.");
+		}
 
 		for (uint32_t i = 1; i < mipmaps; i++) {
 			w = MAX(1u, w >> 1);

@@ -53,6 +53,15 @@ public:
 		LOAD_STATUS_NEEDS_RESTART,
 	};
 
+private:
+	LoadStatus _load_extension_internal(const Ref<GDExtension> &p_extension);
+	LoadStatus _unload_extension_internal(const Ref<GDExtension> &p_extension);
+
+#ifdef TOOLS_ENABLED
+	static void _reload_all_scripts();
+#endif
+
+public:
 	LoadStatus load_extension(const String &p_path);
 	LoadStatus reload_extension(const String &p_path);
 	LoadStatus unload_extension(const String &p_path);
@@ -66,12 +75,19 @@ public:
 	void initialize_extensions(GDExtension::InitializationLevel p_level);
 	void deinitialize_extensions(GDExtension::InitializationLevel p_level);
 
+#ifdef TOOLS_ENABLED
+	void track_instance_binding(void *p_token, Object *p_object);
+	void untrack_instance_binding(void *p_token, Object *p_object);
+#endif
+
 	static GDExtensionManager *get_singleton();
 
 	String change_libraries_path(const String &p_config_path, const String &p_libs_dir);
 	void load_extensions(const String &p_libs_dir);
+	void reload_extensions();
 
 	GDExtensionManager();
+	~GDExtensionManager();
 };
 
 VARIANT_ENUM_CAST(GDExtensionManager::LoadStatus)

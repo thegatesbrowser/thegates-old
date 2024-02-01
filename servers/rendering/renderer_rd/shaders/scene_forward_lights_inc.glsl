@@ -71,7 +71,7 @@ void light_compute(vec3 N, vec3 L, vec3 V, float A, vec3 light_color, bool is_di
 	mat4 inv_view_matrix = scene_data_block.data.inv_view_matrix;
 
 #ifdef USING_MOBILE_RENDERER
-	mat4 read_model_matrix = draw_call.transform;
+	mat4 read_model_matrix = instances.data[draw_call.instance_index].transform;
 #else
 	mat4 read_model_matrix = instances.data[instance_index_interp].transform;
 #endif
@@ -584,7 +584,7 @@ void light_process_omni(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 v
 	{
 		vec4 clamp_rect = omni_lights.data[idx].atlas_rect;
 
-		//redo shadowmapping, but shrink the model a bit to avoid arctifacts
+		//redo shadowmapping, but shrink the model a bit to avoid artifacts
 		vec4 splane = (omni_lights.data[idx].shadow_matrix * vec4(vertex - normalize(normal_interp) * omni_lights.data[idx].transmittance_bias, 1.0));
 
 		float shadow_len = length(splane.xyz);

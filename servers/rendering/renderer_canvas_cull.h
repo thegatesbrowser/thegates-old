@@ -170,9 +170,16 @@ public:
 	RID_Owner<Item, true> canvas_item_owner;
 	RID_Owner<RendererCanvasRender::Light, true> canvas_light_owner;
 
+	template <class T>
+	void _free_rids(T &p_owner, const char *p_type);
+
 	bool disable_scale;
 	bool sdf_used = false;
 	bool snapping_2d_transforms_to_pixel = false;
+
+	bool debug_redraw = false;
+	double debug_redraw_time = 0;
+	Color debug_redraw_color;
 
 	PagedAllocator<Item::VisibilityNotifierData> visibility_notifier_allocator;
 	SelfList<Item::VisibilityNotifierData>::List visibility_notifier_list;
@@ -260,6 +267,9 @@ public:
 
 	void canvas_item_set_canvas_group_mode(RID p_item, RS::CanvasGroupMode p_mode, float p_clear_margin = 5.0, bool p_fit_empty = false, float p_fit_margin = 0.0, bool p_blur_mipmaps = false);
 
+	void canvas_item_set_debug_redraw(bool p_enabled);
+	bool canvas_item_get_debug_redraw() const;
+
 	RID canvas_light_allocate();
 	void canvas_light_initialize(RID p_rid);
 
@@ -319,7 +329,12 @@ public:
 
 	void update_visibility_notifiers();
 
+	Rect2 _debug_canvas_item_get_rect(RID p_item);
+
 	bool free(RID p_rid);
+
+	void finalize();
+
 	RendererCanvasCull();
 	~RendererCanvasCull();
 };

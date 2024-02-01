@@ -483,9 +483,14 @@ Error SceneMultiplayer::complete_auth(int p_peer) {
 	ERR_FAIL_COND_V(!pending_peers.has(p_peer), ERR_INVALID_PARAMETER);
 	ERR_FAIL_COND_V_MSG(pending_peers[p_peer].local, ERR_FILE_CANT_WRITE, "The authentication session was already marked as completed.");
 	pending_peers[p_peer].local = true;
+
 	// Notify the remote peer that the authentication has completed.
 	uint8_t buf[2] = { NETWORK_COMMAND_SYS, SYS_COMMAND_AUTH };
+	multiplayer_peer->set_target_peer(p_peer);
+	multiplayer_peer->set_transfer_channel(0);
+	multiplayer_peer->set_transfer_mode(MultiplayerPeer::TRANSFER_MODE_RELIABLE);
 	Error err = _send(buf, 2);
+
 	// The remote peer already reported the authentication as completed, so admit the peer.
 	// May generate new packets, so it must happen after sending confirmation.
 	if (pending_peers[p_peer].remote) {
@@ -680,12 +685,16 @@ void SceneMultiplayer::_bind_methods() {
 
 SceneMultiplayer::SceneMultiplayer() {
 	relay_buffer.instantiate();
-	replicator = Ref<SceneReplicationInterface>(memnew(SceneReplicationInterface(this)));
-	rpc = Ref<SceneRPCInterface>(memnew(SceneRPCInterface(this)));
 	cache = Ref<SceneCacheInterface>(memnew(SceneCacheInterface(this)));
+	replicator = Ref<SceneReplicationInterface>(memnew(SceneReplicationInterface(this, cache.ptr())));
+	rpc = Ref<SceneRPCInterface>(memnew(SceneRPCInterface(this, cache.ptr(), replicator.ptr())));
 	set_multiplayer_peer(Ref<OfflineMultiplayerPeer>(memnew(OfflineMultiplayerPeer)));
 }
 
 SceneMultiplayer::~SceneMultiplayer() {
 	clear();
+	// Ensure unref in reverse order for safety (we shouldn't use those pointers in the deconstructors anyway).
+	rpc.unref();
+	replicator.unref();
+	cache.unref();
 }

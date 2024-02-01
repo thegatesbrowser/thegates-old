@@ -447,7 +447,7 @@ void AnimatedSprite2D::play(const StringName &p_name, float p_custom_scale, bool
 		name = animation;
 	}
 
-	ERR_FAIL_COND_MSG(frames == nullptr, vformat("There is no animation with name '%s'.", name));
+	ERR_FAIL_NULL_MSG(frames, vformat("There is no animation with name '%s'.", name));
 	ERR_FAIL_COND_MSG(!frames->get_animation_names().has(name), vformat("There is no animation with name '%s'.", name));
 
 	if (frames->get_frame_count(name) == 0) {
@@ -561,14 +561,16 @@ PackedStringArray AnimatedSprite2D::get_configuration_warnings() const {
 }
 
 void AnimatedSprite2D::get_argument_options(const StringName &p_function, int p_idx, List<String> *r_options) const {
-	if (p_idx == 0 && p_function == "play" && frames.is_valid()) {
-		List<StringName> al;
-		frames->get_animation_list(&al);
-		for (const StringName &name : al) {
-			r_options->push_back(String(name).quote());
+	if (p_idx == 0 && frames.is_valid()) {
+		if (p_function == "play" || p_function == "play_backwards" || p_function == "set_animation" || p_function == "set_autoplay") {
+			List<StringName> al;
+			frames->get_animation_list(&al);
+			for (const StringName &name : al) {
+				r_options->push_back(String(name).quote());
+			}
 		}
 	}
-	Node::get_argument_options(p_function, p_idx, r_options);
+	Node2D::get_argument_options(p_function, p_idx, r_options);
 }
 
 #ifndef DISABLE_DEPRECATED
