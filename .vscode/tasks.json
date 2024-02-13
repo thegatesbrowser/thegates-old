@@ -19,7 +19,7 @@
             "type": "shell",
             "command": "scons",
             "args": [
-              "-j", "$(nproc)", "dev_build=yes", "the_gates_sandbox=yes", "compiledb=yes", "use_llvm=yes", "linker=lld", "disable_exceptions=no"
+              "-j", "$(nproc)", "dev_build=yes", "target=template_debug", "the_gates_sandbox=yes", "compiledb=yes", "use_llvm=yes", "linker=lld", "disable_exceptions=no"
             ],
             "problemMatcher": "$msCompile"
         },
