@@ -31,6 +31,7 @@
 #include "gdextension_manager.h"
 
 #include "core/extension/gdextension_compat_hashes.h"
+#include "core/io/dir_access.h"
 #include "core/io/file_access.h"
 #include "core/object/script_language.h"
 
@@ -249,16 +250,21 @@ String GDExtensionManager::change_libraries_path(const String &p_config_path, co
 		}
 	}
 
-	String new_path = p_config_path;
-	if (new_path.begins_with("res://")) {
-		new_path = new_path.replace_first("res", "user");
-		print_verbose("Save to new path " + new_path);
+	String config_path = p_config_path;
+	if (config_path.begins_with("res://")) {
+		config_path = config_path.replace_first("res", "user");
+		print_verbose("Save to new path " + config_path);
 	}
 
-	err = config->save(new_path);
-	ERR_FAIL_COND_V_MSG(err != OK, "", "Cannot save config file to '" + new_path + "'.");
+	String dir = config_path.get_base_dir();
+	Ref<DirAccess> da = DirAccess::create_for_path(dir);
+	err = da->make_dir_recursive(dir);
+	ERR_FAIL_COND_V_MSG(err != OK, "", "Cannot create directory: " + dir);
 
-	return new_path;
+	err = config->save(config_path);
+	ERR_FAIL_COND_V_MSG(err != OK, "", "Cannot save config file to '" + config_path + "'.");
+
+	return config_path;
 }
 
 void GDExtensionManager::load_extensions(const String &p_libs_dir) {
@@ -266,8 +272,8 @@ void GDExtensionManager::load_extensions(const String &p_libs_dir) {
 	while (f.is_valid() && !f->eof_reached()) {
 		String s = f->get_line().strip_edges();
 		if (!s.is_empty()) {
-			String new_path = change_libraries_path(s, p_libs_dir);
-			LoadStatus err = load_extension(new_path);
+			String config_path = change_libraries_path(s, p_libs_dir);
+			LoadStatus err = load_extension(config_path);
 			ERR_CONTINUE_MSG(err == LOAD_STATUS_FAILED, "Error loading extension: " + s);
 		}
 	}
