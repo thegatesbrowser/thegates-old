@@ -62,5 +62,6 @@
     "terminal.integrated.env.windows": {
         "PKG_CONFIG_PATH": "C:/Program Files (x86)/ZeroMQ/lib/pkgconfig"
     },
-    "cmake.configureOnOpen": false
+    "cmake.configureOnOpen": false,
+    "dotnet.defaultSolution": "disable"
 }
