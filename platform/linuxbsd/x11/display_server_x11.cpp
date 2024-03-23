@@ -1670,7 +1670,7 @@ void DisplayServerX11::show_window(WindowID p_id) {
 	print_verbose("show_window: return. Sandbox mode");
 	return;
 #endif
-	
+
 	const WindowData &wd = windows[p_id];
 	popup_open(p_id);
 
