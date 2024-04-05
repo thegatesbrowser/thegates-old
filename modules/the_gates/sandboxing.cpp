@@ -110,7 +110,7 @@ Error Sandboxing::sandbox() {
 		"vfork",
 		"wait4",
 		"write",
-		"writev",
+		"writev"
 	};
 
 	// Block ALL syscalls, we will punch holes in this.
@@ -125,8 +125,7 @@ Error Sandboxing::sandbox() {
 	ERR_FAIL_COND_V_MSG(!seccomp_ctx, ERR_CANT_CREATE, "Unable to initialize seccomp");
 
 	// Punch holes for every syscall we need.
-	for (int i = 0; i < sizeof(permitted_syscalls) / sizeof(permitted_syscalls[0]); i++)
-	{
+	for (int i = 0; i < sizeof(permitted_syscalls) / sizeof(permitted_syscalls[0]); i++) {
 		const char *syscall = permitted_syscalls[i];
 		int err = seccomp_rule_add_exact(seccomp_ctx, SCMP_ACT_ALLOW, seccomp_syscall_resolve_name(syscall), 0);
 		ERR_FAIL_COND_V_MSG(err, FAILED, "Unable to seccomp rule add " + String(syscall));
