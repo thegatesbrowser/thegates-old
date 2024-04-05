@@ -18,7 +18,7 @@ Error Sandboxing::sandbox() {
 
 	bool success = OpenProcessToken(GetCurrentProcess(), TOKEN_DUPLICATE, &process_token);
 	ERR_FAIL_COND_V_MSG(!success, ERR_CANT_OPEN, "Unable to OpenProcessToken. Error code: " + itos(GetLastError()));
-	
+
 	success = CreateRestrictedToken(process_token, DISABLE_MAX_PRIVILEGE, 0, NULL, 0, NULL, 0, NULL, &restricted_token);
 	ERR_FAIL_COND_V_MSG(!success, ERR_CANT_CREATE, "Unable to CreateRestrictedToken. Error code: " + itos(GetLastError()));
 
@@ -125,8 +125,7 @@ Error Sandboxing::sandbox() {
 	ERR_FAIL_COND_V_MSG(!seccomp_ctx, ERR_CANT_CREATE, "Unable to initialize seccomp");
 
 	// Punch holes for every syscall we need.
-	for (int i = 0;
-		 i < sizeof(permitted_syscalls) / sizeof(permitted_syscalls[0]); i++)
+	for (int i = 0; i < sizeof(permitted_syscalls) / sizeof(permitted_syscalls[0]); i++)
 	{
 		const char *syscall = permitted_syscalls[i];
 		int err = seccomp_rule_add_exact(seccomp_ctx, SCMP_ACT_ALLOW, seccomp_syscall_resolve_name(syscall), 0);
