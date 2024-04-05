@@ -37,6 +37,7 @@ Error Sandboxing::sandbox() {
 		"brk",
 		"chdir",
 		"clock_gettime",
+		"clock_nanosleep",
 		"clone3",
 		"close",
 		"connect",
