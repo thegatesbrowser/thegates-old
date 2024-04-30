@@ -2636,8 +2636,10 @@ void Window::_update_mouse_over(Vector2 p_pos) {
 			mouse_in_window = true;
 			_propagate_window_notification(this, NOTIFICATION_WM_MOUSE_ENTER);
 		} else {
+#ifndef THE_GATES_SANDBOX
 			// Prevent update based on delayed InputEvents from DisplayServer.
 			return;
+#endif
 		}
 	}
 
